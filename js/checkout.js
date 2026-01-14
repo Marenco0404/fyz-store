@@ -684,23 +684,20 @@
     },
 
     _functionsUrl(path) {
-      const cfg = getCfg();
-      const region = cfg.functionsRegion || "us-central1";
-      const projectId = (firebase && firebase.app && firebase.app().options && firebase.app().options.projectId)
-        ? firebase.app().options.projectId
-        : null;
-      if (!projectId) return null;
-      
-      // En producción, usa HTTPS automáticamente
-      // En desarrollo local, también usa HTTPS (Firebase emulators soporta HTTP)
-      return `https://${region}-${projectId}.cloudfunctions.net/${path}`;
+      // En Vercel, los endpoints están en /api/...
+      // En desarrollo local (localhost), también funcionan
+      if (typeof window !== "undefined" && window.location) {
+        const origin = window.location.origin; // ej: https://fyz-store.vercel.app o http://localhost:5500
+        return `${origin}/api/${path}`;
+      }
+      return null;
     },
 
     async _crearPaymentIntent({ amountCents, currency, totalCRC, fxRate, items }) {
       const url = this._functionsUrl("createPaymentIntent");
-      if (!url) throw new Error("No se pudo armar URL de Cloud Function.");
+      if (!url) throw new Error("No se pudo armar URL del endpoint.");
 
-      console.log("🔗 URL de función:", url);
+      console.log("🔗 URL del endpoint:", url);
       console.log("📦 Payload:", { amountCents, currency, totalCRC, fxRate, itemsCount: items?.length });
 
       const res = await fetch(url, {
@@ -729,7 +726,7 @@
 
       if (!res.ok) {
         const errMsg = data.error || `HTTP ${res.status}: ${res.statusText}`;
-        throw new Error(`CloudFunction error: ${errMsg}`);
+        throw new Error(`Endpoint error: ${errMsg}`);
       }
       return data;
     },
