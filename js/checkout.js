@@ -381,6 +381,7 @@
     async _loadPayPalSdk() {
       if (typeof paypal !== "undefined") {
         this.paypalSdkLoaded = true;
+        console.log("✅ PayPal SDK ya estaba cargado");
         return true;
       }
 
@@ -390,14 +391,13 @@
       const env = String(cfg.paypalEnv || "sandbox").toLowerCase();
 
       if (!clientId || clientId.includes("PON_AQUI")) {
-        console.warn("⚠️ Falta PAYPAL clientId en window.PAYMENTS_CONFIG");
+        console.error("❌ FALTA: PAYPAL clientId en window.PAYMENTS_CONFIG");
         return false;
       }
 
       return new Promise((resolve) => {
+        console.log("📥 Cargando PayPal SDK...");
         const s = document.createElement("script");
-        // En sandbox algunas cuentas fallan al habilitar "card" como funding.
-        // Dejamos PayPal estándar (buttons) para máxima compatibilidad.
         const base = "https://www.paypal.com/sdk/js";
         const params = new URLSearchParams({
           "client-id": clientId,
@@ -405,7 +405,6 @@
           intent: "capture",
           components: "buttons",
           locale: "es_ES",
-          // reduce chances of sandbox edge-cases
           "disable-funding": "paylater"
         });
         if (env === "sandbox") {
@@ -415,9 +414,13 @@
         s.async = true;
         s.onload = () => {
           this.paypalSdkLoaded = true;
+          console.log("✅ PayPal SDK cargado correctamente");
           resolve(true);
         };
-        s.onerror = () => resolve(false);
+        s.onerror = (err) => {
+          console.error("❌ Error cargando PayPal SDK:", err);
+          resolve(false);
+        };
         document.head.appendChild(s);
       });
     },
@@ -442,7 +445,10 @@
       if (!container) return;
 
       const ok = await this._loadPayPalSdk();
-      if (!ok || typeof paypal === "undefined") return;
+      if (!ok || typeof paypal === "undefined") {
+        container.innerHTML = `<div style="color:red; padding:10px;">❌ PayPal SDK no cargó. Probá sin AdBlock.</div>`;
+        return;
+      }
 
       if (this.paypalRendered && forceRerender) {
         container.innerHTML = "";
@@ -458,80 +464,102 @@
 
       const usdTotal = crcToUsd(total);
 
-      paypal.Buttons({
-        locale: "es_ES",
-        style: { layout: "vertical" },
+      try {
+        paypal.Buttons({
+          locale: "es_ES",
+          style: { layout: "vertical" },
 
-        createOrder: async (data, actions) => {
-          this._clearCheckoutError();
-          // shipping debe estar OK antes de cobrar
-          this._asegurarShippingListo();
+          createOrder: async (data, actions) => {
+            this._clearCheckoutError();
+            // shipping debe estar OK antes de cobrar
+            this._asegurarShippingListo();
 
-          // validar stock antes de crear orden
-          await this._validarStockDisponible();
+            // validar stock antes de crear orden
+            await this._validarStockDisponible();
 
-          // Recalcular total en caso de que el carrito cambie (seguridad)
-          const again = this._calcularTotales();
-          const usd = crcToUsd(again.total);
-          if (!usd || !isFinite(usd) || usd <= 0) {
-            throw new Error("Total USD inválido");
-          }
-
-          return actions.order.create({
-            purchase_units: [{
-              amount: { currency_code: "USD", value: String(usd.toFixed(2)) },
-              description: "Compra en F&Z Store"
-            }]
-          });
-        },
-
-        onApprove: async (data, actions) => {
-          try {
-            const details = await actions.order.capture();
-            // Captura real suele venir en purchase_units[0].payments.captures[0].id
-            const captureId =
-              details?.purchase_units?.[0]?.payments?.captures?.[0]?.id ||
-              details?.id ||
-              data?.orderID ||
-              uidLike();
-
-            const status = String(details?.status || "").toUpperCase();
-            if (status && status !== "COMPLETED") {
-              throw new Error("PayPal status: " + status);
+            // Recalcular total en caso de que el carrito cambie (seguridad)
+            const again = this._calcularTotales();
+            const usd = crcToUsd(again.total);
+            if (!usd || !isFinite(usd) || usd <= 0) {
+              throw new Error("Total USD inválido");
             }
 
-            const pedidoId = await this._postPago({
-              metodo: "paypal",
-              idTransaccion: captureId,
-              totalCRC: total,
-              totalUSD: usdTotal,
-              fxRate: getFxRate()
+            console.log("📦 PayPal creating order for USD:", usd);
+            return actions.order.create({
+              intent: "CAPTURE",
+              purchase_units: [{
+                amount: { 
+                  currency_code: "USD", 
+                  value: String(usd.toFixed(2))
+                },
+                description: "Compra en F&Z Store"
+              }]
             });
+          },
 
-            window.location.href = pedidoId
-              ? ("confirmacion.html?id=" + encodeURIComponent(pedidoId))
-              : "confirmacion.html";
-          } catch (err) {
-            console.error("❌ PayPal capture error:", err);
-            const msg = (err && (err.message || err.toString())) ? String(err.message || err.toString()) : "";
+          onApprove: async (data, actions) => {
+            try {
+              console.log("✅ PayPal approved, capturing order...");
+              const details = await actions.order.capture();
+              
+              // Captura real suele venir en purchase_units[0].payments.captures[0].id
+              const captureId =
+                details?.purchase_units?.[0]?.payments?.captures?.[0]?.id ||
+                details?.purchase_units?.[0]?.payments?.captures?.[0]?.status ||
+                details?.id ||
+                data?.orderID ||
+                uidLike();
+
+              const status = String(details?.status || "").toUpperCase();
+              console.log("📋 PayPal order status:", status);
+              
+              if (status && status !== "COMPLETED") {
+                throw new Error("PayPal status: " + status);
+              }
+
+              const pedidoId = await this._postPago({
+                metodo: "paypal",
+                idTransaccion: captureId,
+                totalCRC: total,
+                totalUSD: usdTotal,
+                fxRate: getFxRate()
+              });
+
+              console.log("✅ Pedido registrado:", pedidoId);
+              window.location.href = pedidoId
+                ? ("confirmacion.html?id=" + encodeURIComponent(pedidoId))
+                : "confirmacion.html";
+            } catch (err) {
+              console.error("❌ PayPal capture error:", err);
+              const msg = (err && (err.message || err.toString())) ? String(err.message || err.toString()) : "";
+              this._showCheckoutError(
+                "❌ No se pudo completar el pago con PayPal." + (msg ? " Error: " + msg : "") +
+                "\n\nSoluciones:\n- Probá sin AdBlock\n- Abrí en modo incógnito\n- Revisá que tengas saldo en PayPal\n- Recargá la página si falla el botón"
+              );
+            }
+          },
+
+          onError: (err) => {
+            console.error("❌ PayPal error:", err);
             this._showCheckoutError(
-              "No se pudo completar el pago con PayPal." + (msg ? " Detalle: " + msg : "") +
-              " Si estás en sandbox, probá en incógnito / sin AdBlock."
+              "❌ Error de PayPal.\n\nProbá:\n- Desactivar AdBlock\n- Modo incógnito\n- Otra tarjeta o método de pago\n\nSi persiste, revisá la consola (F12)."
             );
+          },
+
+          onCancel: () => {
+            console.log("⚠️ PayPal cancelled by user");
+            this._showCheckoutError("Cancelaste el pago en PayPal. Podés intentar de nuevo.");
           }
-        },
+        }).render("#paypal-button-container").catch((err) => {
+          console.error("❌ PayPal Buttons render error:", err);
+          container.innerHTML = `<div style="color:red; padding:10px;">❌ Error renderizando botón PayPal. Probá sin AdBlock.</div>`;
+        });
 
-        onError: (err) => {
-          console.error("❌ PayPal error:", err);
-          this._showCheckoutError("Error con PayPal. Revisá tu Client ID (sandbox) y probá sin AdBlock.");
-        },
-
-        onCancel: () => {
-          this._showCheckoutError("Pago cancelado en PayPal.");
-        }
-      }).render("#paypal-button-container");
-
-      this.paypalRendered = true;
+        this.paypalRendered = true;
+      } catch (err) {
+        console.error("❌ PayPal init error:", err);
+        this._showCheckoutError("Error inicializando PayPal: " + String(err.message || err));
+      }
     },
 
     inicializarPayPal() {
