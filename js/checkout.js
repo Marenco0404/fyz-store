@@ -538,23 +538,29 @@
 
       if (!merchantCode || !publicKey) {
         console.warn("⚠️ 2Checkout keys missing in PAYMENTS_CONFIG");
-        container.innerHTML = `<div style="color:red; padding:10px;">❌ 2Checkout no configurado</div>`;
+        container.innerHTML = `<div style="color:#e74c3c; padding:1rem; background: rgba(231, 76, 60, 0.1); border-radius: 6px; border-left: 4px solid #e74c3c;">❌ 2Checkout no está configurado correctamente</div>`;
         return;
       }
 
       const { total } = this._calcularTotales();
       if (total <= 0) {
-        container.innerHTML = `<div style="padding:10px;">Agregá productos al carrito</div>`;
+        container.innerHTML = `<div style="padding:10px; color: var(--color-text-light);">Agregá productos al carrito</div>`;
         return;
       }
 
       // Cargar SDK si no existe
       if (typeof TwoCheckout === "undefined") {
         console.log("📥 Cargando 2Checkout SDK...");
-        await this._load2CheckoutSdk();
+        const sdkLoaded = await this._load2CheckoutSdk();
         
-        if (typeof TwoCheckout === "undefined") {
-          container.innerHTML = `<div style="color:red; padding:10px;">❌ 2Checkout SDK no disponible</div>`;
+        if (!sdkLoaded || typeof TwoCheckout === "undefined") {
+          console.error("❌ No fue posible cargar 2Checkout SDK");
+          container.innerHTML = `
+            <div style="color:#e74c3c; padding:1rem; background: rgba(231, 76, 60, 0.1); border-radius: 6px; border-left: 4px solid #e74c3c;">
+              <strong>⚠️ Servicio no disponible</strong><br>
+              <small>2Checkout no se pudo cargar. Usa PayPal por ahora.</small>
+            </div>
+          `;
           return;
         }
       }
@@ -579,7 +585,7 @@
         console.log("✅ 2Checkout iniciado correctamente");
       } catch (error) {
         console.error("Error iniciando 2Checkout:", error);
-        container.innerHTML = `<div style="color:red; padding:10px;">❌ Error: ${error.message}</div>`;
+        container.innerHTML = `<div style="color:#e74c3c; padding:1rem; background: rgba(231, 76, 60, 0.1); border-radius: 6px; border-left: 4px solid #e74c3c;">❌ Error: ${error.message}</div>`;
       }
     },
 
@@ -587,6 +593,7 @@
       return new Promise((resolve) => {
         // Si ya existe, resolver inmediatamente
         if (typeof TwoCheckout !== "undefined") {
+          console.log("✅ 2Checkout SDK ya estaba cargado");
           resolve(true);
           return;
         }
@@ -595,10 +602,27 @@
         const script = document.createElement("script");
         script.src = "https://www.2checkout.com/static/v1/2checkout.js";
         script.async = true;
+        script.defer = false;
 
         script.onload = () => {
-          console.log("✅ 2Checkout SDK cargado");
-          resolve(true);
+          console.log("📥 Script 2Checkout cargado, verificando objeto...");
+          // Esperar un poco para que el objeto global se registre
+          setTimeout(() => {
+            if (typeof TwoCheckout !== "undefined") {
+              console.log("✅ 2Checkout SDK disponible");
+              resolve(true);
+            } else {
+              console.warn("⚠️ Script cargado pero TwoCheckout aún no disponible");
+              // Intentar cargar de nuevo con pequeño delay
+              setTimeout(() => {
+                if (typeof TwoCheckout !== "undefined") {
+                  resolve(true);
+                } else {
+                  resolve(false);
+                }
+              }, 500);
+            }
+          }, 100);
         };
 
         script.onerror = (err) => {
