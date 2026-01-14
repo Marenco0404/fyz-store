@@ -527,8 +527,8 @@
       const container = document.getElementById("2checkout-button-container");
       const form = document.getElementById("payment-method-form");
       
-      if (!container || !form) {
-        console.log("❌ 2Checkout container or form not found");
+      if (!container) {
+        console.log("❌ 2Checkout container not found");
         return;
       }
 
@@ -567,9 +567,6 @@
 
       try {
         TwoCheckout.setPublishableKey(publicKey);
-
-        // Mostrar el formulario
-        form.style.display = "block";
 
         // Crear botón de pago
         const btn = document.createElement("button");
