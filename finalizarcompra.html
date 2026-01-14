@@ -21,9 +21,6 @@
     <script src="https://www.2checkout.com/static/v1/2checkout.js"></script>
     
     <!-- PayPal SDK -->
-    
-    <!-- Stripe -->
-    <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
     <!-- Header -->
@@ -239,59 +236,6 @@
                                         <p>Paga de forma segura con 2Checkout - Opciones de pago flexibles para Costa Rica</p>
                                         <div id="2checkout-button-container"></div>
                                     </div>
-                                </div>
-                            </div>
-                            
-                            <div class="payment-method" data-method="card">
-                                <div class="method-header">
-                                    <div class="method-radio">
-                                        <input type="radio" name="payment-method" id="card-method">
-                                    </div>
-                                    <div class="method-info">
-                                        <div class="method-icon">
-                                            <i class="far fa-credit-card"></i>
-                                        </div>
-                                        <div class="method-details">
-                                            <h3 class="method-name">Tarjeta de Crédito/Débito</h3>
-                                            <p class="method-description">Visa, Mastercard, American Express</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="method-content" id="card-content">
-                                    <form id="card-form" class="card-form">
-                                        <div class="form-group">
-                                            <label for="stripe-card-element">Datos de la tarjeta *</label>
-                                            <div class="card-input">
-                                                <div id="stripe-card-element" class="stripe-card-input"></div>
-                                                <div class="card-icons">
-                                                    <i class="fab fa-cc-visa"></i>
-                                                    <i class="fab fa-cc-mastercard"></i>
-                                                    <i class="fab fa-cc-amex"></i>
-                                                </div>
-                                            </div>
-                                            <div id="stripe-card-errors" class="form-error" role="alert"></div>
-                                        </div>
-                                        
-                                            </div>
-                                        
-                                        <div class="form-group">
-                                            <label for="card-name">Nombre en la Tarjeta *</label>
-                                            <input type="text" id="card-name" 
-                                                   placeholder="Como aparece en la tarjeta" required>
-                                        </div>
-                                        </div>
-                                        
-                                        <div class="form-group">
-                                            <div class="checkbox-group">
-                                                <input type="checkbox" id="save-card">
-                                                <label for="save-card">Guardar tarjeta para futuras compras</label>
-                                            </div>
-                                        </div>
-                                        
-                                        <button type="submit" class="btn btn-primary btn-lg" id="pay-with-card">
-                                            <i class="fas fa-lock"></i> Pagar Ahora
-                                        </button>
-                                    </form>
                                 </div>
                             </div>
                         </div>

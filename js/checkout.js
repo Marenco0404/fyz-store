@@ -73,10 +73,6 @@
 
   // =================== CheckoutSystem ===================
   const CheckoutSystem = {
-    stripe: null,
-    stripeElements: null,
-    stripeCard: null,
-
     paypalRendered: false,
     paypalSdkLoaded: false,
 
@@ -93,20 +89,17 @@
       // 4) métodos de pago UI
       this._bindMetodosPago();
 
-      // 5) init Stripe (monta el Element aunque no lo estén viendo todavía)
-      this._initStripe();
-
       // 6) autocompletar shipping si hay sesión
       this._prefillShippingFromUser();
 
       // 7) submit tarjeta
-      const form = document.getElementById("card-form");
-      if (form) {
-        form.addEventListener("submit", async (e) => {
-          e.preventDefault();
-          await this._pagarConTarjeta();
-        });
-      }
+      // const form = document.getElementById("card-form");
+      // if (form) {
+      //   form.addEventListener("submit", async (e) => {
+      //     e.preventDefault();
+      //     await this._pagarConTarjeta();
+      //   });
+      // }
 
       // 8) si el user vuelve a esta página y ya había shipping guardado, lo ponemos
       this._hydrateShippingFromStorage();
@@ -775,73 +768,6 @@
       return this._initPaypal(true);
     },
 
-    // =================== STRIPE ===================
-    _initStripe() {
-      const cfg = getCfg();
-      const pk = cfg.stripePublishableKey;
-
-      if (!pk || pk.includes("PON_AQUI")) {
-        console.warn("⚠️ Falta Stripe publishable key en window.PAYMENTS_CONFIG");
-
-        // UI: bloquear método tarjeta y avisar
-        const mount = document.getElementById("stripe-card-element");
-        if (mount) {
-          // agregamos clase para overlay del mensaje
-          const wrap = mount.closest(".card-input") || mount.parentElement;
-          const section = mount.closest(".payment-method") || mount.closest(".payment-option") || mount.closest("section") || mount.parentElement;
-          (section || mount.parentElement)?.classList?.add("stripe-disabled");
-        }
-        const errBox = document.getElementById("stripe-card-errors") || document.getElementById("checkout-error");
-        if (errBox) {
-          errBox.textContent = "Stripe no está configurado. Pegá tu pk_test en js/firebase-config.js (stripePublishableKey) y recargá.";
-          errBox.style.display = "block";
-        }
-        const payBtn = document.getElementById("pay-with-card");
-        if (payBtn) {
-          payBtn.disabled = true;
-          payBtn.title = "Configurá Stripe (pk_test) para habilitar este pago.";
-          payBtn.classList.add("disabled");
-        }
-        return;
-      }
-      if (typeof Stripe === "undefined") {
-        console.warn("⚠️ Stripe.js no está cargado. Asegurate de tener <script src='https://js.stripe.com/v3/'></script>");
-        return;
-      }
-
-      try {
-        this.stripe = Stripe(pk);
-        this.stripeElements = this.stripe.elements();
-
-        const mount = document.getElementById("stripe-card-element");
-        if (mount) {
-          this.stripeCard = this.stripeElements.create("card", {
-            hidePostalCode: true,
-            style: {
-              base: {
-                color: "#ffffff",
-                fontFamily: "inherit",
-                fontSize: "16px",
-                "::placeholder": { color: "rgba(255,255,255,.45)" }
-              },
-              invalid: { color: "#ef4444" }
-            }
-          });
-          this.stripeCard.mount("#stripe-card-element");
-          const payBtn = document.getElementById("pay-with-card");
-          if (payBtn) { payBtn.disabled = false; payBtn.title = ""; payBtn.classList.remove("disabled"); }
-
-
-          this.stripeCard.on("change", (event) => {
-            const elErr = document.getElementById("stripe-card-errors");
-            if (elErr) elErr.textContent = event.error ? event.error.message : "";
-          });
-        }
-      } catch (e) {
-        console.error("❌ Stripe init error:", e);
-      }
-    },
-
     _asegurarShippingListo() {
       const form = document.getElementById("shipping-form");
       if (!form) return true;
@@ -851,90 +777,6 @@
       }
       this._guardarShippingEnStorage();
       return true;
-    },
-
-    async _pagarConTarjeta() {
-      const btn = document.getElementById("pay-with-card");
-      if (btn) btn.disabled = true;
-
-      try {
-        this._asegurarShippingListo();
-
-        const { total, items } = this._calcularTotales();
-        if (!items.length || total <= 0) throw new Error("Carrito vacío");
-        if (!this.stripe || !this.stripeCard) throw new Error("Stripe no inicializado");
-
-        // SECURITY: Validar nombre de tarjeta
-        const cardName = (document.getElementById("card-name") || {}).value || "";
-        if (!cardName.trim() || cardName.length < 3 || cardName.length > 60) {
-          throw new Error("Nombre en tarjeta inválido");
-        }
-
-        // SECURITY: Validar que el carrito no cambió desde que empezó checkout
-        const previousCartHash = sessionStorage.getItem("fyz_cart_hash");
-        const currentHash = JSON.stringify(items);
-        if (previousCartHash && previousCartHash !== currentHash) {
-          throw new Error("El carrito cambió. Por favor, revisa e intenta de nuevo.");
-        }
-
-        // 1) validar stock antes de cobrar
-        await this._validarStockDisponible();
-
-        // 2) crear payment intent (server) en USD (centavos)
-        const usdTotal = crcToUsd(total);
-        const amountCents = usdToCents(usdTotal);
-
-        // SECURITY: Validar montos
-        if (amountCents < 50 || amountCents > 9999999) {
-          throw new Error("Monto fuera de rango permitido");
-        }
-
-        const { clientSecret } = await this._crearPaymentIntent({
-          amountCents,
-          currency: "usd",
-          totalCRC: total,
-          fxRate: getFxRate(),
-          items
-        });
-
-        if (!clientSecret) throw new Error("No se pudo obtener clientSecret.");
-
-        // 3) confirmar pago
-        const name = this._sanitizeInput(cardName);
-        const result = await this.stripe.confirmCardPayment(clientSecret, {
-          payment_method: {
-            card: this.stripeCard,
-            billing_details: { name }
-          }
-        });
-
-        if (result.error) {
-          const elErr = document.getElementById("stripe-card-errors");
-          if (elErr) elErr.textContent = result.error.message || "Error de pago.";
-          throw result.error;
-        }
-
-        const pi = result.paymentIntent;
-        if (!pi || pi.status !== "succeeded") throw new Error("Pago no completado.");
-
-        const pedidoId = await this._postPago({
-          metodo: "tarjeta",
-          idTransaccion: pi.id,
-          totalCRC: total,
-          totalUSD: usdTotal,
-          fxRate: getFxRate()
-        });
-
-        window.location.href = pedidoId
-          ? ("confirmacion.html?id=" + encodeURIComponent(pedidoId))
-          : "confirmacion.html";
-      } catch (err) {
-        console.error("❌ Error tarjeta:", err);
-        const msgError = err?.message || String(err) || "Error desconocido";
-        alert(`❌ Error en pago:\n\n${this._sanitizeInput(msgError)}\n\nVerificá:\n- Datos de tarjeta correctos\n- Consola (F12) para más detalles`);
-      } finally {
-        if (btn) btn.disabled = false;
-      }
     },
 
     _functionsUrl(path) {
