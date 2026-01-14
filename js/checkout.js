@@ -445,6 +445,9 @@
 
           // si vuelven a PayPal, re-render si hace falta
           if (method === "paypal") await this._initPaypal(false);
+          
+          // si seleccionan 2Checkout, inicializar
+          if (method === "2checkout") await this._init2Checkout();
         });
       });
     },
@@ -514,8 +517,10 @@
 
     async _init2Checkout() {
       const container = document.getElementById("2checkout-button-container");
-      if (!container) {
-        console.log("No 2Checkout container found");
+      const form = document.getElementById("payment-method-form");
+      
+      if (!container || !form) {
+        console.log("❌ 2Checkout container or form not found");
         return;
       }
 
@@ -543,39 +548,67 @@
 
       TwoCheckout.setPublishableKey(publicKey);
 
+      // Mostrar el formulario
+      form.style.display = "block";
+
+      // Crear botón de pago
       const btn = document.createElement("button");
+      btn.type = "button";
       btn.className = "btn-pay btn-2checkout";
-      btn.innerHTML = `<i class="fas fa-credit-card"></i> Pagar con 2Checkout`;
+      btn.innerHTML = `<i class="fas fa-credit-card"></i> Pagar ${formatCRC(total)}`;
       btn.onclick = (e) => this._handle2CheckoutPayment(e);
+      
+      // Limpiar contenedor y agregar botón
       container.innerHTML = "";
       container.appendChild(btn);
     },
 
     async _handle2CheckoutPayment(e) {
       e.preventDefault();
-      const { total, items, shipping } = this._calcularTotales();
+      e.stopPropagation();
+      
+      const { total, items } = this._calcularTotales();
 
-      if (!this._validateFormData()) return;
+      if (!this._validateFormData()) {
+        this._showCheckoutError("❌ Por favor completa la información de envío");
+        return;
+      }
 
       const form = document.getElementById("payment-method-form");
-      if (!form) return;
+      if (!form) {
+        this._showCheckoutError("❌ Formulario de pago no encontrado");
+        return;
+      }
 
-      const cardNumber = form.cardNumber?.value?.replace(/\s/g, "");
-      const expMonth = form.expMonth?.value;
-      const expYear = form.expYear?.value;
-      const cvv = form.cvv?.value;
+      const cardNumber = form.cardNumber?.value?.replace(/\s/g, "") || "";
+      const expMonth = form.expMonth?.value || "";
+      const expYear = form.expYear?.value || "";
+      const cvv = form.cvv?.value || "";
 
-      if (!cardNumber || !expMonth || !expYear || !cvv) {
-        alert("❌ Datos de tarjeta incompletos");
+      // Validar campos
+      if (!cardNumber || cardNumber.length < 13) {
+        this._showCheckoutError("❌ Número de tarjeta inválido");
+        return;
+      }
+      
+      if (!expMonth || !expYear) {
+        this._showCheckoutError("❌ Fecha de expiración incompleta");
+        return;
+      }
+      
+      if (!cvv || cvv.length < 3) {
+        this._showCheckoutError("❌ CVV inválido");
         return;
       }
 
       try {
+        this._showCheckoutError("Procesando pago...");
         const token = await this._get2CheckoutToken(cardNumber, expMonth, expYear, cvv);
+        this._clearCheckoutError();
         await this._process2CheckoutPayment(token, total, items);
       } catch (error) {
         console.error("2Checkout error:", error);
-        alert("❌ Error procesando pago: " + (error.message || "Unknown error"));
+        this._showCheckoutError("❌ Error: " + (error.message || "Unknown error"));
       }
     },
 
