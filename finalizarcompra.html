@@ -14,8 +14,11 @@
   <link rel="icon" type="image/png" href="img/logo.png" />
 
     <link rel="stylesheet" href="css/main.css">
-    <link rel="stylesheet" href="css/checkout.css">
+    <link rel="stylesheet" href="css/checkout-modern.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- 2Checkout SDK -->
+    <script src="https://www.2checkout.com/static/v1/2checkout.js"></script>
     
     <!-- PayPal SDK -->
     
@@ -212,6 +215,29 @@
                                     <div class="paypal-info">
                                         <p>Serás redirigido a PayPal para completar tu pago de forma segura.</p>
                                         <div id="paypal-button-container"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="payment-method" data-method="2checkout">
+                                <div class="method-header">
+                                    <div class="method-radio">
+                                        <input type="radio" name="payment-method" id="2checkout-method">
+                                    </div>
+                                    <div class="method-info">
+                                        <div class="method-icon">
+                                            <i class="fas fa-credit-card"></i>
+                                        </div>
+                                        <div class="method-details">
+                                            <h3 class="method-name">2Checkout</h3>
+                                            <p class="method-description">Pago seguro con múltiples opciones</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="method-content" id="2checkout-content">
+                                    <div class="payment-info">
+                                        <p>Paga de forma segura con 2Checkout - Opciones de pago flexibles para Costa Rica</p>
+                                        <div id="2checkout-button-container"></div>
                                     </div>
                                 </div>
                             </div>

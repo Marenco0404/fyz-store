@@ -389,6 +389,9 @@ window.PAYMENTS_CONFIG = {
   // "sandbox" o "production"
   paypalEnv: "sandbox",
   stripePublishableKey: "pk_test_51SpWYYEKWY4tPfQc6X4TLo0gy98PI6OTjhp9E3wQyRZ0bUy49CoVxg7mch7MaD8G3Sy0ZVjs9aHSV81VVz9AmYKD00JcLe1oRp",
+  // 2Checkout credentials (producción)
+  twoCheckoutMerchantCode: "255873012978",
+  twoCheckoutPublicKey: "0F495E75-1E67-4137-BFE3-6BFFCF8E5769",
   // region donde vas a desplegar tus functions (por defecto suele ser us-central1)
   functionsRegion: "us-central1"
 };

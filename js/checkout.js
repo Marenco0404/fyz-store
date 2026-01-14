@@ -519,6 +519,135 @@
       if (box) box.style.display = "none";
     },
 
+    async _init2Checkout() {
+      const container = document.getElementById("2checkout-button-container");
+      if (!container) {
+        console.log("No 2Checkout container found");
+        return;
+      }
+
+      const cfg = window.PAYMENTS_CONFIG || {};
+      const merchantCode = cfg.twoCheckoutMerchantCode;
+      const publicKey = cfg.twoCheckoutPublicKey;
+
+      if (!merchantCode || !publicKey) {
+        console.warn("⚠️ 2Checkout keys missing in PAYMENTS_CONFIG");
+        container.innerHTML = `<div style="color:red; padding:10px;">❌ 2Checkout no configurado</div>`;
+        return;
+      }
+
+      const { total } = this._calcularTotales();
+      if (total <= 0) {
+        container.innerHTML = `<div style="padding:10px;">Agregá productos al carrito</div>`;
+        return;
+      }
+
+      // Inicializar 2Checkout
+      if (typeof TwoCheckout === "undefined") {
+        container.innerHTML = `<div style="color:red; padding:10px;">❌ 2Checkout SDK no cargó</div>`;
+        return;
+      }
+
+      TwoCheckout.setPublishableKey(publicKey);
+
+      const btn = document.createElement("button");
+      btn.className = "btn-pay btn-2checkout";
+      btn.innerHTML = `<i class="fas fa-credit-card"></i> Pagar con 2Checkout`;
+      btn.onclick = (e) => this._handle2CheckoutPayment(e);
+      container.innerHTML = "";
+      container.appendChild(btn);
+    },
+
+    async _handle2CheckoutPayment(e) {
+      e.preventDefault();
+      const { total, items, shipping } = this._calcularTotales();
+
+      if (!this._validateFormData()) return;
+
+      const form = document.getElementById("payment-method-form");
+      if (!form) return;
+
+      const cardNumber = form.cardNumber?.value?.replace(/\s/g, "");
+      const expMonth = form.expMonth?.value;
+      const expYear = form.expYear?.value;
+      const cvv = form.cvv?.value;
+
+      if (!cardNumber || !expMonth || !expYear || !cvv) {
+        alert("❌ Datos de tarjeta incompletos");
+        return;
+      }
+
+      try {
+        const token = await this._get2CheckoutToken(cardNumber, expMonth, expYear, cvv);
+        await this._process2CheckoutPayment(token, total, items);
+      } catch (error) {
+        console.error("2Checkout error:", error);
+        alert("❌ Error procesando pago: " + (error.message || "Unknown error"));
+      }
+    },
+
+    async _get2CheckoutToken(cardNumber, expMonth, expYear, cvv) {
+      return new Promise((resolve, reject) => {
+        TwoCheckout.tokenize({
+          sellerId: window.PAYMENTS_CONFIG.twoCheckoutMerchantCode,
+          publishableKey: window.PAYMENTS_CONFIG.twoCheckoutPublicKey,
+          ccNo: cardNumber,
+          expMonth: expMonth,
+          expYear: expYear,
+          cvv: cvv
+        }, (response) => {
+          if (response.success) {
+            resolve(response.token);
+          } else {
+            reject(new Error(response.errorMsg || "Token generation failed"));
+          }
+        });
+      });
+    },
+
+    async _process2CheckoutPayment(token, total, items) {
+      const shipping = this._leerShippingFromForm();
+      const payload = {
+        amount: Math.round(total),
+        currency: "CRC",
+        token: token,
+        items: items.map(item => ({
+          id: this._sanitizeInput(item.id),
+          name: this._sanitizeInput(item.name),
+          price: item.price,
+          qty: item.qty
+        })),
+        shipping: {
+          name: this._sanitizeInput(shipping.name),
+          email: this._sanitizeInput(shipping.email),
+          phone: this._sanitizeInput(shipping.phone),
+          address: this._sanitizeInput(shipping.address)
+        }
+      };
+
+      try {
+        const response = await fetch("/api/create2CheckoutIntent", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || "Payment failed");
+        }
+
+        const data = await response.json();
+        window.location.href = `confirmacion.html?orderId=${data.orderId}`;
+      } catch (error) {
+        console.error("Error:", error);
+        alert("❌ Error: " + error.message);
+      }
+    },
+
     async _initPaypal(forceRerender) {
       const container = document.getElementById("paypal-button-container");
       if (!container) return;
