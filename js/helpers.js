@@ -343,8 +343,105 @@ const Helpers = {
         if (interval > 1) return Math.floor(interval) + ' minutos';
         
         return Math.floor(seconds) + ' segundos';
+    },
+
+    // ========== OPTIMIZACIÓN DE PERFORMANCE ==========
+    
+    // Lazy loading de imágenes con Intersection Observer
+    initLazyLoading: function() {
+        if (!('IntersectionObserver' in window)) {
+            // Fallback para navegadores antiguos
+            const images = document.querySelectorAll('[data-src]');
+            images.forEach(img => {
+                img.src = img.dataset.src;
+                img.removeAttribute('data-src');
+            });
+            return;
+        }
+
+        const imageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    if (img.dataset.src) {
+                        img.src = img.dataset.src;
+                        img.removeAttribute('data-src');
+                        observer.unobserve(img);
+                    }
+                }
+            });
+        }, {
+            rootMargin: '50px'
+        });
+
+        document.querySelectorAll('[data-src]').forEach(img => imageObserver.observe(img));
+    },
+
+    // Precarga de recursos críticos
+    preloadResource: function(url, as = 'script') {
+        const link = document.createElement('link');
+        link.rel = 'preload';
+        link.as = as;
+        link.href = url;
+        document.head.appendChild(link);
+    },
+
+    // Deferral de tareas no críticas
+    deferTask: function(callback, delay = 0) {
+        if ('requestIdleCallback' in window) {
+            requestIdleCallback(callback);
+        } else {
+            setTimeout(callback, delay);
+        }
+    },
+
+    // Caché local con expiración
+    setCache: function(key, value, ttl = 3600000) {
+        const item = {
+            value: value,
+            expiry: Date.now() + ttl
+        };
+        try {
+            localStorage.setItem('cache_' + key, JSON.stringify(item));
+        } catch (e) {
+            console.warn('Cache full:', e);
+        }
+    },
+
+    getCache: function(key) {
+        try {
+            const itemStr = localStorage.getItem('cache_' + key);
+            if (!itemStr) return null;
+            
+            const item = JSON.parse(itemStr);
+            if (Date.now() > item.expiry) {
+                localStorage.removeItem('cache_' + key);
+                return null;
+            }
+            return item.value;
+        } catch (e) {
+            return null;
+        }
+    },
+
+    // Debounce mejorado para eventos
+    debounce: function(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
     }
 };
 
 // Exportar para uso global
 window.Helpers = Helpers;
+
+// Inicializar lazy loading automáticamente
+document.addEventListener('DOMContentLoaded', () => {
+    Helpers.initLazyLoading();
+});
