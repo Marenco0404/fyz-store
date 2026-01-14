@@ -1113,6 +1113,12 @@ const AdminSystem = {
                 e.preventDefault();
                 const page = e.target.closest('a').dataset.page;
                 this.mostrarPagina(page);
+                
+                // Cerrar sidebar en móvil al clickear una opción
+                const sidebar = document.querySelector('.admin-sidebar');
+                if (sidebar && window.innerWidth <= 768) {
+                    sidebar.classList.remove('active');
+                }
             });
         });
         
@@ -1121,8 +1127,25 @@ const AdminSystem = {
         const sidebar = document.querySelector('.admin-sidebar');
         
         if (menuToggle && sidebar) {
-            menuToggle.addEventListener('click', () => {
+            menuToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
                 sidebar.classList.toggle('active');
+            });
+            
+            // Cerrar sidebar cuando se clickea fuera
+            document.addEventListener('click', (e) => {
+                if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+                    if (sidebar.classList.contains('active')) {
+                        sidebar.classList.remove('active');
+                    }
+                }
+            });
+            
+            // Cerrar sidebar al cambiar tamaño de pantalla
+            window.addEventListener('resize', () => {
+                if (window.innerWidth > 768 && sidebar.classList.contains('active')) {
+                    sidebar.classList.remove('active');
+                }
             });
         }
         
