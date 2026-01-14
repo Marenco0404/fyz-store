@@ -385,7 +385,7 @@ window.PAYMENTS_CONFIG = {
   paypalCurrency: "USD",
   // Tipo de cambio aproximado para convertir CRC -> USD (ajustalo si querés)
   paypalFxRate: 520,
-  paypalClientId: "AVInNYd4PuPGvuVkOh-ihUZQZGx7jfWQz9NyZhx3HIkIk3PpiMv8j0R20HU_h_03k1CuckmsqldyqPqe",
+  paypalClientId: "AVmvQ-COQxwhMn1z2ZaINicjRADGcUVuHiequWY3yHPquWBEyzsz89pCKykfGcqCP9boVhQftXdgOovy",
   // "sandbox" o "production"
   paypalEnv: "sandbox",
   stripePublishableKey: "pk_test_51SpWYYEKWY4tPfQc6X4TLo0gy98PI6OTjhp9E3wQyRZ0bUy49CoVxg7mch7MaD8G3Sy0ZVjs9aHSV81VVz9AmYKD00JcLe1oRp",
