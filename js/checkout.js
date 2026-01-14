@@ -547,29 +547,8 @@
         return;
       }
 
-      // Cargar SDK si no existe
-      if (typeof TwoCheckout === "undefined") {
-        console.log("📥 Intentando cargar 2Checkout SDK...");
-        container.innerHTML = `<div style="padding: 1rem; color: var(--color-text-light); text-align: center; font-size: 0.9rem;">Cargando servicio de pago...</div>`;
-        
-        const sdkLoaded = await this._load2CheckoutSdk();
-        
-        if (!sdkLoaded || typeof TwoCheckout === "undefined") {
-          console.error("❌ No fue posible cargar 2Checkout SDK");
-          container.innerHTML = `
-            <div style="color:#e74c3c; padding:1rem; background: rgba(231, 76, 60, 0.1); border-radius: 6px; border-left: 4px solid #e74c3c; font-size: 0.9rem;">
-              <strong>⚠️ Servicio no disponible</strong><br>
-              <small>2Checkout no está disponible ahora. Por favor usa PayPal como alternativa.</small>
-            </div>
-          `;
-          return;
-        }
-      }
-
       try {
-        TwoCheckout.setPublishableKey(publicKey);
-
-        // Crear botón de pago
+        // Crear botón de pago que abre 2Checkout
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "btn-pay btn-2checkout";
@@ -587,202 +566,92 @@
       }
     },
 
-    async _load2CheckoutSdk() {
-      return new Promise((resolve) => {
-        // Si ya existe, resolver inmediatamente
-        if (typeof TwoCheckout !== "undefined") {
-          console.log("✅ 2Checkout SDK ya estaba cargado");
-          resolve(true);
-          return;
-        }
 
-        // Intento 1: URL primaria
-        const urls = [
-          "https://www.2checkout.com/static/v1/2checkout.js",
-          "https://www.2checkout.com/api/v1/2checkout.js"
-        ];
-        
-        let urlIndex = 0;
-        const attemptLoad = () => {
-          if (urlIndex >= urls.length) {
-            console.error("❌ Todas las URLs de 2Checkout fallaron");
-            resolve(false);
-            return;
-          }
-
-          const url = urls[urlIndex];
-          console.log(`📥 Intentando cargar 2Checkout desde: ${url}`);
-          
-          // Crear script
-          const script = document.createElement("script");
-          script.src = url;
-          script.async = true;
-          script.defer = false;
-          script.id = "2checkout-sdk";
-
-          // Timeout de 5 segundos para cargar el SDK
-          const timeoutId = setTimeout(() => {
-            console.warn(`⚠️ Timeout en URL ${urlIndex + 1}/${urls.length} (5s)`);
-            script.remove();
-            urlIndex++;
-            attemptLoad();
-          }, 5000);
-
-          script.onload = () => {
-            clearTimeout(timeoutId);
-            console.log("📥 Script 2Checkout cargado, verificando objeto...");
-            
-            // Esperar a que el objeto global se registre
-            const checkInterval = setInterval(() => {
-              if (typeof TwoCheckout !== "undefined") {
-                clearInterval(checkInterval);
-                console.log("✅ 2Checkout SDK disponible correctamente");
-                resolve(true);
-              }
-            }, 100);
-
-            // Timeout final después de 3 segundos
-            setTimeout(() => {
-              clearInterval(checkInterval);
-              if (typeof TwoCheckout === "undefined") {
-                console.warn(`⚠️ TwoCheckout no registrado en URL ${urlIndex + 1}`);
-                script.remove();
-                urlIndex++;
-                attemptLoad();
-              }
-            }, 3000);
-          };
-
-          script.onerror = (err) => {
-            clearTimeout(timeoutId);
-            console.error(`❌ Error en URL ${urlIndex + 1}: ${err}`);
-            script.remove();
-            urlIndex++;
-            attemptLoad();
-          };
-
-          document.head.appendChild(script);
-        };
-
-        attemptLoad();
-      });
-    },
 
     async _handle2CheckoutPayment(e) {
       e.preventDefault();
       e.stopPropagation();
       
-      // Verificación de diagnóstico
-      console.log("🔍 Diagnóstico de 2Checkout:");
-      console.log("   - window.TwoCheckout:", typeof TwoCheckout);
-      console.log("   - PAYMENTS_CONFIG:", window.PAYMENTS_CONFIG);
-      
       const { total, items } = this._calcularTotales();
-
+      
+      console.log("🔍 Iniciando pago con 2Checkout");
+      console.log("   - Monto:", total);
+      console.log("   - Merchant:", window.PAYMENTS_CONFIG?.twoCheckoutMerchantCode);
+      
       if (!this._validateFormData()) {
         this._showCheckoutError("❌ Por favor completa la información de envío");
         return;
       }
-
-      const form = document.getElementById("payment-method-form");
-      if (!form) {
-        this._showCheckoutError("❌ Formulario de pago no encontrado");
-        return;
-      }
-
-      const cardNumber = form.cardNumber?.value?.replace(/\s/g, "") || "";
-      const expMonth = form.expMonth?.value || "";
-      const expYear = form.expYear?.value || "";
-      const cvv = form.cvv?.value || "";
-
-      // Validar campos
-      if (!cardNumber || cardNumber.length < 13) {
-        this._showCheckoutError("❌ Número de tarjeta inválido");
-        return;
-      }
       
-      if (!expMonth || !expYear) {
-        this._showCheckoutError("❌ Fecha de expiración incompleta");
-        return;
-      }
+      // Obtener datos del usuario
+      const userEmail = document.getElementById("email-input")?.value || "no-email@test.com";
+      const userName = document.getElementById("nombre-input")?.value || "Guest";
+      const userPhone = document.getElementById("phone-input")?.value || "";
       
-      if (!cvv || cvv.length < 3) {
-        this._showCheckoutError("❌ CVV inválido");
-        return;
-      }
-
-      try {
-        this._showCheckoutError("Procesando pago...");
-        const token = await this._get2CheckoutToken(cardNumber, expMonth, expYear, cvv);
-        this._clearCheckoutError();
-        await this._process2CheckoutPayment(token, total, items);
-      } catch (error) {
-        console.error("2Checkout error:", error);
-        this._showCheckoutError("❌ Error: " + (error.message || "Unknown error"));
-      }
-    },
-
-    async _get2CheckoutToken(cardNumber, expMonth, expYear, cvv) {
-      return new Promise((resolve, reject) => {
-        TwoCheckout.tokenize({
-          sellerId: window.PAYMENTS_CONFIG.twoCheckoutMerchantCode,
-          publishableKey: window.PAYMENTS_CONFIG.twoCheckoutPublicKey,
-          ccNo: cardNumber,
-          expMonth: expMonth,
-          expYear: expYear,
-          cvv: cvv
-        }, (response) => {
-          if (response.success) {
-            resolve(response.token);
-          } else {
-            reject(new Error(response.errorMsg || "Token generation failed"));
-          }
-        });
+      // Preparar parámetros para 2Checkout
+      const params = new URLSearchParams({
+        sid: window.PAYMENTS_CONFIG.twoCheckoutMerchantCode,
+        return_url: window.location.origin + "/confirmacion.html",
+        cancel_url: window.location.href,
+        email: userEmail,
+        first_name: userName.split(" ")[0],
+        last_name: userName.split(" ")[1] || "",
+        currency_code: "CRC",
+        amount: (total / 100).toFixed(2),
+        item_id: "fyz-order",
+        item_name: "F&Z Store Order"
       });
-    },
-
-    async _process2CheckoutPayment(token, total, items) {
-      const shipping = this._leerShippingFromForm();
-      const payload = {
-        amount: Math.round(total),
-        currency: "CRC",
-        token: token,
-        items: items.map(item => ({
-          id: this._sanitizeInput(item.id),
-          name: this._sanitizeInput(item.name),
-          price: item.price,
-          qty: item.qty
-        })),
-        shipping: {
-          name: this._sanitizeInput(shipping.name),
-          email: this._sanitizeInput(shipping.email),
-          phone: this._sanitizeInput(shipping.phone),
-          address: this._sanitizeInput(shipping.address)
-        }
-      };
-
+      
+      // Agregar items del carrito
+      items.forEach((item, index) => {
+        params.append(`item_name_${index + 1}`, item.nombre);
+        params.append(`item_price_${index + 1}`, (item.precio / 100).toFixed(2));
+        params.append(`item_qty_${index + 1}`, item.cantidad);
+      });
+      
+      // Redirigir a 2Checkout
+      const checkoutUrl = `https://www.2checkout.com/checkout/purchase?${params.toString()}`;
+      console.log("🔗 Rediriendo a 2Checkout:", checkoutUrl);
+      
+      // Guardar pedido en Firebase antes de redirigir
       try {
-        const response = await fetch("/api/create2CheckoutIntent", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Requested-With": "XMLHttpRequest"
-          },
-          body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.error || "Payment failed");
-        }
-
-        const data = await response.json();
-        window.location.href = `confirmacion.html?orderId=${data.orderId}`;
+        await this._savePendingOrder(userEmail, userName, userPhone, total, items);
+        console.log("✅ Pedido guardado");
+        window.location.href = checkoutUrl;
       } catch (error) {
-        console.error("Error:", error);
-        alert("❌ Error: " + error.message);
+        console.error("❌ Error guardando pedido:", error);
+        this._showCheckoutError("Error al procesar el pedido. Intenta de nuevo.");
       }
     },
+
+    async _savePendingOrder(email, nombre, phone, total, items) {
+      try {
+        const { db, auth } = window.firebaseConfig;
+        if (!db || !auth.currentUser?.email) {
+          console.warn("⚠️ No hay usuario autenticado");
+          return;
+        }
+        
+        // Guardar orden pendiente de pago
+        await window.firebaseConfig.db.collection("pedidos").add({
+          usuario_email: auth.currentUser.email,
+          nombre: nombre,
+          telefono: phone,
+          total: total,
+          items: items,
+          estado: "pendiente_2checkout",
+          fecha: new Date(),
+          metodo_pago: "2checkout"
+        });
+      } catch (error) {
+        console.error("Error saving order:", error);
+        throw error;
+      }
+    },
+
+
+
+
 
     async _initPaypal(forceRerender) {
       const container = document.getElementById("paypal-button-container");
