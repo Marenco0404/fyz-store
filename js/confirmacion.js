@@ -198,6 +198,8 @@
     if (!id) {
       if (localData && (localData.totalCRC || localData.total || (localData.items && localData.items.length))) {
         renderPedido(null, localData, "");
+        attachPrintListener();
+        attachTrackListener();
         return;
       }
       showNotFound();
@@ -207,6 +209,8 @@
     if (!window.db) {
       if (localData && (localData.totalCRC || localData.total || (localData.items && localData.items.length))) {
         renderPedido(null, localData, id);
+        attachPrintListener();
+        attachTrackListener();
         return;
       }
       showNotFound();
@@ -218,6 +222,8 @@
       if (!doc.exists) {
         if (localData && (localData.totalCRC || localData.total || (localData.items && localData.items.length))) {
           renderPedido(null, localData, id);
+          attachPrintListener();
+          attachTrackListener();
           return;
         }
         showNotFound();
@@ -226,13 +232,38 @@
       const pedido = { id: doc.id, ...doc.data() };
       renderPedido(pedido, localData, id);
       localStorage.setItem("fyz_last_pedido_id", id);
+      attachPrintListener();
+      attachTrackListener();
     } catch (e) {
       console.error("❌ Error cargando pedido:", e);
       if (localData && (localData.totalCRC || localData.total || (localData.items && localData.items.length))) {
         renderPedido(null, localData, id);
+        attachPrintListener();
+        attachTrackListener();
         return;
       }
       showNotFound();
+    }
+  }
+
+  // Agregar listeners de botones
+  function attachPrintListener() {
+    const printBtn = $("print-order");
+    if (printBtn) {
+      printBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        window.print();
+      });
+    }
+  }
+
+  function attachTrackListener() {
+    const trackBtn = $("track-order");
+    if (trackBtn) {
+      trackBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        alert("📦 Seguimiento próximamente.\n\nVerifica tu email para el estado de tu orden.");
+      });
     }
   }
 
