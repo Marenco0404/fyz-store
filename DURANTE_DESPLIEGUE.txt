@@ -1,0 +1,187 @@
+╔════════════════════════════════════════════════════════════════╗
+║                    DURANTE EL DESPLIEGUE                       ║
+║                 (Qué esperar en cada paso)                      ║
+╚════════════════════════════════════════════════════════════════╝
+
+CUANDO EJECUTAS: npm install -g firebase-tools
+────────────────────────────────────────────────────────────────
+Output esperado:
+  added X packages
+  ✔ Success!
+
+⏱️ Duración: 1-2 minutos
+
+
+CUANDO EJECUTAS: firebase login
+────────────────────────────────────────────────────────────────
+Output esperado:
+  ✔ Success! Logged in as tu_email@gmail.com
+
+⏱️ Duración: 30 segundos (abre navegador para confirmación)
+
+
+CUANDO EJECUTAS: cd functions && npm install && cd ..
+────────────────────────────────────────────────────────────────
+Output esperado:
+  added X packages (en functions)
+  npm notice [...]
+
+⏱️ Duración: 1-2 minutos
+
+
+CUANDO EJECUTAS: firebase functions:config:set stripe.secret="sk_test_..."
+────────────────────────────────────────────────────────────────
+Output esperado:
+  ✔ Set the following config values in firebase config:
+    stripe.secret = "sk_test_..."
+
+⏱️ Duración: 5-10 segundos
+
+
+CUANDO EJECUTAS: firebase deploy
+────────────────────────────────────────────────────────────────
+
+Verás algo como:
+
+  i deploying functions, hosting
+  i project: fyzperfumeria
+  ...
+  
+  ✔ Deploy of functions complete after XXs
+  Function URL (createPaymentIntent):
+    https://us-central1-fyzperfumeria.cloudfunctions.net/createPaymentIntent
+  
+  i deploying hosting
+  ✔ Deploy of hosting complete after XXs
+  
+  ✔ Deploy complete!
+  
+  Project Console: https://console.firebase.google.com/project/fyzperfumeria/overview
+  Hosting URL: https://fyzperfumeria.web.app
+
+⏱️ Duración: 2-3 minutos
+
+✅ SI VES TODO ESTO = DESPLIEGUE EXITOSO
+
+
+ERRORES COMUNES Y SOLUCIONES:
+────────────────────────────────────────────────────────────────
+
+❌ "You do not have permission to access project..."
+✅ Solución:
+   firebase logout
+   firebase login
+   (Asegurate de iniciar sesión con la cuenta que tiene el proyecto)
+
+
+❌ "npm: command not found"
+✅ Solución:
+   - Instala Node.js desde https://nodejs.org
+   - Reinicia PowerShell
+
+
+❌ "firebase: command not found"
+✅ Solución:
+   npm install -g firebase-tools
+   (Asegurate de estar en PowerShell como ADMINISTRADOR)
+
+
+❌ "CORS error en DevTools"
+✅ Solución:
+   - Recarga el navegador (Ctrl+F5)
+   - Borra caché (Ctrl+Shift+Delete)
+   - Espera 30 segundos y intenta de nuevo
+
+
+❌ "Stripe error: amountCents inválido"
+✅ Solución:
+   - Significa que el producto cuesta menos de USD 0.50
+   - Esto es una restricción de Stripe (mínimo USD 0.50)
+   - Aumentá el precio del producto
+
+
+❌ "No se pudo armar URL de Cloud Function"
+✅ Solución:
+   - La función no está desplegada
+   - Ejecuta: firebase deploy --only functions
+
+
+DESPUÉS DE DESPLEGAR:
+────────────────────────────────────────────────────────────────
+
+✅ Abre el navegador
+✅ Ve a: https://fyzperfumeria.web.app/finalizarcompra.html
+✅ Agrega un producto al carrito
+✅ Llena datos de envío
+✅ Selecciona "Tarjeta de Crédito"
+✅ Usa: 4242 4242 4242 4242 (tarjeta de prueba)
+✅ Cualquier fecha futura y CVC
+✅ Verifica que aparezca "Confirmación de pago"
+
+
+VERIFICAR QUE TODO FUNCIONA:
+────────────────────────────────────────────────────────────────
+
+DevTools (F12) → Console debe mostrar:
+  ✅ "[Firebase] Firebase initialized"
+  ✅ "CheckoutSystem.init()"
+  ✅ "🔗 URL de función: https://us-central1-..."
+  ✅ "📡 Response status: 200"
+  ✅ "✅ Pedido guardado"
+
+Si ves ❌ rojo en la console, algo falló. Lee el mensaje de error.
+
+
+CAMBIOS FUTUROS:
+────────────────────────────────────────────────────────────────
+
+Para actualizar el sitio en vivo:
+
+  1. Edita archivos (HTML, CSS, JS)
+  2. Ejecuta: firebase deploy
+  3. Espera 1-2 minutos
+  4. Abre navegador en https://fyzperfumeria.web.app
+  5. Presiona Ctrl+F5 (fuerza recarga sin caché)
+
+¡Eso es todo! El sitio se actualiza automáticamente.
+
+
+VER LOGS Y DIAGNOSTICAR:
+────────────────────────────────────────────────────────────────
+
+Ver logs de Cloud Functions:
+  firebase functions:log
+
+Ver configuración actual:
+  firebase functions:config:get
+
+Ver URLs y estado:
+  firebase deploy (sin ejecutar, solo lee estado)
+
+Ver datos de pedidos:
+  https://console.firebase.google.com/project/fyzperfumeria/firestore/data
+
+
+¿NECESITÁS ROLLBACK?
+────────────────────────────────────────────────────────────────
+
+Si algo se rompió:
+
+  1. Vuelve a la versión anterior de archivos (Git, backup)
+  2. Ejecuta: firebase deploy
+  3. Espera a que se actualice
+
+Stripe y PayPal serán restaurados automáticamente.
+
+
+MONITOREO:
+────────────────────────────────────────────────────────────────
+
+Revisar pagos registrados:
+  → Firebase Console → Firestore → Colección "pedidos"
+
+Ver errores en tiempo real:
+  → firebase functions:log
+
+Estadísticas de tráfico:
+  → Firebase Console → Hosting → Analiticstics

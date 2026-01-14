@@ -1,0 +1,169 @@
+╔════════════════════════════════════════════════════════════════╗
+║                                                                ║
+║  GUÍA SIMPLE: SUBIR LA TIENDA A LA WEB (PRODUCCIÓN)          ║
+║                                                                ║
+║  F&Z Store - Checkout Integrado                              ║
+╚════════════════════════════════════════════════════════════════╝
+
+CONTEXTO:
+Tu tienda funciona perfecto en tu computadora (localhost:5500).
+Ahora querés que funcione en internet (https://fyzperfumeria.web.app)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+REQUISITOS (instalar una sola vez):
+
+1. Node.js
+   → Descargar de: https://nodejs.org/
+   → Click en "LTS" (versión recomendada)
+   → Ejecutar instalador
+   → Cuando termina, reinicia la computadora
+
+2. Verificar que Node se instaló:
+   → Abre PowerShell
+   → Escribe: node --version
+   → Debe mostrar algo como: v18.17.0
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PASOS DE DESPLIEGUE (cada vez que quieras actualizar):
+
+📍 PASO 1: Abrir PowerShell en la carpeta del proyecto
+   → Click derecho en: c:\Users\pablo\Downloads\fyz_checkout_integrado_abajo
+   → Seleccionar: "Open PowerShell window here"
+
+📍 PASO 2: Instalar Firebase CLI (solo la primera vez)
+   → Copiar y ejecutar:
+   
+      npm install -g firebase-tools
+
+   → Esperar a que termine (puede tardar 1-2 minutos)
+
+📍 PASO 3: Instalar dependencias de funciones (solo la primera vez)
+   → Copiar y ejecutar:
+   
+      cd functions
+      npm install
+      cd ..
+
+   → Esperar a que termine
+
+📍 PASO 4: Iniciar sesión en Firebase
+   → Copiar y ejecutar:
+   
+      firebase login
+
+   → Se abre un navegador
+   → Iniciar sesión con tu cuenta de Google
+   → Vuelve a PowerShell y presiona cualquier tecla
+
+📍 PASO 5: Configurar Stripe (solo la primera vez)
+   → Copiar y ejecutar (TODO en una línea):
+   
+      firebase functions:config:set stripe.secret="TU_STRIPE_SECRET_KEY"
+
+   → Esperar mensaje de éxito
+
+📍 PASO 6: Subir todo a la web
+   → Copiar y ejecutar:
+   
+      firebase deploy
+
+   → Esperar a que termine (puede tardar 2-3 minutos)
+   → Al final mostrará algo como:
+     
+      ✔  Deploy complete!
+      ✔  Hosting URL: https://fyzperfumeria.web.app
+
+📍 PASO 7: Testear
+   → Abrir el navegador
+   → Ir a: https://fyzperfumeria.web.app/finalizarcompra.html
+   → Probar el checkout completo
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+TARJETA PARA TESTEAR:
+
+Número:  4242 4242 4242 4242
+Fecha:   cualquier fecha futura (ej: 12/25)
+CVC:     cualquier número de 3 dígitos (ej: 123)
+Nombre:  cualquiera
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CAMBIOS FUTUROS:
+
+Cada vez que cambies HTML, CSS o JavaScript:
+1. Abre PowerShell en la carpeta del proyecto
+2. Ejecuta: firebase deploy
+3. Espera a que termine
+4. El sitio se actualiza automáticamente
+
+NUNCA necesitas cambiar las claves de Stripe (a menos que quieras
+ir a producción con dinero real).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SI ALGO FALLA:
+
+1. ¿Error de PowerShell?
+   → Abre PowerShell COMO ADMINISTRADOR
+   → Vuelve a intentar
+
+2. ¿Error de Node/npm?
+   → Reinicia la computadora
+   → Abre nueva ventana de PowerShell
+
+3. ¿Error en el deploy?
+   → Copia exactamente el error
+   → Búscalo en Google
+   → Probablemente necesites:
+     - firebase logout
+     - firebase login
+     - firebase deploy nuevamente
+
+4. ¿No ves cambios después de deploy?
+   → Abre DevTools (F12)
+   → Ctrl+Shift+Delete (Borrar caché)
+   → Recarga la página
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+URLs IMPORTANTES:
+
+En DESARROLLO:
+  - Sitio: http://localhost:5500
+  - Checkout: http://localhost:5500/finalizarcompra.html
+
+En PRODUCCIÓN:
+  - Sitio: https://fyzperfumeria.web.app
+  - Checkout: https://fyzperfumeria.web.app/finalizarcompra.html
+
+Firebase Console (ver datos):
+  - https://console.firebase.google.com/u/0/project/fyzperfumeria
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+COMANDOS ÚTILES:
+
+Ver logs de errores:
+  firebase functions:log
+
+Cerrar sesión:
+  firebase logout
+
+Revertir último deploy:
+  firebase deploy (con código anterior)
+
+Borrar todo y empezar:
+  firebase functions:delete createPaymentIntent
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+¿LISTO? 
+
+1. Instala Node.js
+2. Sigue los PASOS DE DESPLIEGUE
+3. ¡Tu sitio está en vivo!
+
+Cualquier duda, revisá STATUS.md o DEPLOYMENT.md

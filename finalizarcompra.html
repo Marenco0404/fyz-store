@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' https:; connect-src 'self' https:; font-src 'self' https: data:; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()">
+<title>Finalizar Compra - F&Z Store</title>
+    
+    
+<!-- CSS -->
+  <link rel="icon" type="image/png" href="img/logo.png" />
+
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/checkout.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- PayPal SDK -->
+    
+    <!-- Stripe -->
+    <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <nav class="navbar">
+                <a href="index.html" class="logo">
+                    <img src="img/logo.png" alt="F&Z Store">
+                    <span class="logo-text">F&Z Store</span>
+                </a>
+                
+                <ul class="nav-menu">
+                    <li><a href="index.html"><i class="fas fa-home"></i> Inicio</a></li>
+                    <li><a href="perfumeria.html"><i class="fas fa-spray-can"></i> Perfumería</a></li>
+                    <li><a href="sexshop.html"><i class="fas fa-heart"></i> Sex Shop</a></li>
+                    <li><a href="carrito.html"><i class="fas fa-shopping-cart"></i> Carrito</a></li>
+                    
+                    <li class="user-menu-container">
+                        <div class="user-menu" id="user-menu">
+                            <span class="user-name" id="user-name">
+                                <i class="fas fa-user"></i> Iniciar Sesión
+                            </span>
+                            <div class="user-dropdown" id="user-dropdown">
+                                <a href="login.html" id="login-link"><i class="fas fa-sign-in-alt"></i> Iniciar Sesión</a>
+                                <a href="registro.html" id="register-link"><i class="fas fa-user-plus"></i> Registrarse</a>
+                                <a href="#" id="admin-link" style="display: none;"><i class="fas fa-cog"></i> Panel Admin</a>
+                                <a href="mis_pedidos.html" id="orders-link" style="display: none;"><i class="fas fa-box"></i> Mis Pedidos</a>
+                                <a href="#" id="logout-link" style="display: none;"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+                
+                <div class="cart-icon" id="cart-icon">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span class="cart-count" id="cart-count">0</span>
+                    
+                    <div class="cart-dropdown" id="cart-dropdown">
+                        <h4><i class="fas fa-shopping-bag"></i> Tu Carrito</h4>
+                        <div class="cart-items" id="cart-dropdown-items">
+                            <!-- Los productos se cargarán aquí -->
+                        </div>
+                        <div class="cart-total">
+                            <span>Total:</span>
+                            <span id="cart-dropdown-total">₡0.00</span>
+                        </div>
+                        <div class="cart-actions">
+                            <a href="carrito.html" class="btn btn-secondary btn-sm">
+                                <i class="fas fa-eye"></i> Ver Carrito
+                            </a>
+                            <a href="finalizarcompra.html" class="btn btn-primary btn-sm">
+                                <i class="fas fa-credit-card"></i> Pagar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="menu-toggle" id="menu-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Proceso de Checkout -->
+    <main class="checkout-page">
+        <div class="container">
+            <div class="checkout-header">
+                <h1 class="page-title">Finalizar Compra</h1>
+                <div class="checkout-steps">
+                    <div class="step active">
+                        <span class="step-number">1</span>
+                        <span class="step-text">Carrito</span>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">2</span>
+                        <span class="step-text">Información</span>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">3</span>
+                        <span class="step-text">Pago</span>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">4</span>
+                        <span class="step-text">Confirmación</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="checkout-grid">
+                <!-- Columna Izquierda: Formularios -->
+                <div class="checkout-left">
+                    <!-- Información de Envío -->
+                    <section class="checkout-section" id="shipping-section">
+                        <div class="section-header">
+                            <h2><i class="fas fa-truck"></i> Información de Envío</h2>
+                        </div>
+                        
+                        <form id="shipping-form" class="checkout-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="shipping-first-name">Nombre *</label>
+                                    <input type="text" id="shipping-first-name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="shipping-last-name">Apellido *</label>
+                                    <input type="text" id="shipping-last-name" required>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="shipping-email">Email *</label>
+                                <input type="email" id="shipping-email" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="shipping-phone">Teléfono *</label>
+                                <input type="tel" id="shipping-phone" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="shipping-address">Dirección *</label>
+                                <input type="text" id="shipping-address" required>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="shipping-city">Ciudad *</label>
+                                    <input type="text" id="shipping-city" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="shipping-zip">Código Postal *</label>
+                                    <input type="text" id="shipping-zip" required>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="shipping-country">País *</label>
+                                <select id="shipping-country" required>
+                                <option value="Costa Rica" selected>Costa Rica</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <div class="checkbox-group">
+                                    <input type="checkbox" id="save-shipping">
+                                    <label for="save-shipping">Guardar esta información para futuras compras</label>
+                                </div>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" id="back-to-cart">
+                                    <i class="fas fa-arrow-left"></i> Volver al Carrito
+                                </button>
+                                <button type="button" class="btn btn-primary" id="continue-to-payment">
+                                    Continuar al Pago <i class="fas fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </section>
+                    
+                    <!-- Método de Pago -->
+                    <section class="checkout-section" id="payment-section" style="display: none;">
+                        <div class="section-header">
+                            <h2><i class="fas fa-credit-card"></i> Método de Pago</h2>
+                            <button type="button" class="btn btn-link btn-edit-shipping" id="edit-shipping-btn"><i class="fas fa-pen"></i> Editar envío</button>
+                        </div>
+
+                        <!-- Mensajes de error (PayPal/Stripe/validaciones) -->
+                        <div id="checkout-error" class="checkout-error" role="alert" style="display:none;"></div>
+                        
+                        <div class="payment-methods">
+                            <div class="payment-method active" data-method="paypal">
+                                <div class="method-header">
+                                    <div class="method-radio">
+                                        <input type="radio" name="payment-method" id="paypal-method" checked>
+                                    </div>
+                                    <div class="method-info">
+                                        <div class="method-icon">
+                                            <i class="fab fa-paypal"></i>
+                                        </div>
+                                        <div class="method-details">
+                                            <h3 class="method-name">PayPal</h3>
+                                            <p class="method-description">Paga rápido y seguro con PayPal</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="method-content active" id="paypal-content">
+                                    <div class="paypal-info">
+                                        <p>Serás redirigido a PayPal para completar tu pago de forma segura.</p>
+                                        <div id="paypal-button-container"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="payment-method" data-method="card">
+                                <div class="method-header">
+                                    <div class="method-radio">
+                                        <input type="radio" name="payment-method" id="card-method">
+                                    </div>
+                                    <div class="method-info">
+                                        <div class="method-icon">
+                                            <i class="far fa-credit-card"></i>
+                                        </div>
+                                        <div class="method-details">
+                                            <h3 class="method-name">Tarjeta de Crédito/Débito</h3>
+                                            <p class="method-description">Visa, Mastercard, American Express</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="method-content" id="card-content">
+                                    <form id="card-form" class="card-form">
+                                        <div class="form-group">
+                                            <label for="stripe-card-element">Datos de la tarjeta *</label>
+                                            <div class="card-input">
+                                                <div id="stripe-card-element" class="stripe-card-input"></div>
+                                                <div class="card-icons">
+                                                    <i class="fab fa-cc-visa"></i>
+                                                    <i class="fab fa-cc-mastercard"></i>
+                                                    <i class="fab fa-cc-amex"></i>
+                                                </div>
+                                            </div>
+                                            <div id="stripe-card-errors" class="form-error" role="alert"></div>
+                                        </div>
+                                        
+                                            </div>
+                                        
+                                        <div class="form-group">
+                                            <label for="card-name">Nombre en la Tarjeta *</label>
+                                            <input type="text" id="card-name" 
+                                                   placeholder="Como aparece en la tarjeta" required>
+                                        </div>
+                                        </div>
+                                        
+                                        <div class="form-group">
+                                            <div class="checkbox-group">
+                                                <input type="checkbox" id="save-card">
+                                                <label for="save-card">Guardar tarjeta para futuras compras</label>
+                                            </div>
+                                        </div>
+                                        
+                                        <button type="submit" class="btn btn-primary btn-lg" id="pay-with-card">
+                                            <i class="fas fa-lock"></i> Pagar Ahora
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Resumen del Pedido (movido debajo del Método de Pago) -->
+                    <div class="order-summary">
+                        <h2 class="summary-title">
+                            <i class="fas fa-receipt"></i> Resumen del Pedido
+                        </h2>
+                        
+                        <div class="summary-items" id="summary-items">
+                            <!-- Los productos se cargarán aquí -->
+                            <div class="empty-summary">
+                                <i class="fas fa-shopping-cart"></i>
+                                <p>No hay productos en el carrito</p>
+                            </div>
+                        </div>
+                        
+                        <div class="summary-totals">
+                            <div class="total-row">
+                                <span>Subtotal</span>
+                                <span id="summary-subtotal">₡0.00</span>
+                            </div>
+                            <div class="total-row">
+                                <span>Envío</span>
+                                <span id="summary-shipping" class="free-shipping">Gratis</span>
+                            </div>
+                            <div class="total-row grand-total">
+                                <span>Total</span>
+                                <span id="summary-total">₡0.00</span>
+                            </div>
+                        </div>
+                        
+                        <div class="summary-info">
+                            <div class="info-item">
+                                <i class="fas fa-shipping-fast"></i>
+                                <div>
+                                    <strong>Envío en 24-48 horas</strong>
+                                    <p>Entrega rápida y discreta</p>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <i class="fas fa-shield-alt"></i>
+                                <div>
+                                    <strong>Compra 100% segura</strong>
+                                    <p>Encriptación SSL de alta seguridad</p>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <i class="fas fa-undo"></i>
+                                <div>
+                                    <strong>Devoluciones fáciles</strong>
+                                    <p>30 días para devoluciones</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col">
+                    <div class="footer-logo">
+                        <img src="img/logo.png" alt="F&Z Store">
+                        <span class="logo-text">F&Z Store</span>
+                    </div>
+                    <p class="footer-text">
+                        Tu tienda de confianza para perfumería y productos íntimos. 
+                        Calidad, discreción y seguridad garantizada.
+                    </p>
+                    <div class="social-links">
+                        <a href="#" class="social-link"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-tiktok"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
+                    </div>
+                </div>
+                
+                <div class="footer-col">
+                    <h4 class="footer-title">Enlaces Rápidos</h4>
+                    <ul class="footer-links">
+                        <li><a href="index.html"><i class="fas fa-chevron-right"></i> Inicio</a></li>
+                        <li><a href="perfumeria.html"><i class="fas fa-chevron-right"></i> Perfumería</a></li>
+                        <li><a href="sexshop.html"><i class="fas fa-chevron-right"></i> Sex Shop</a></li>
+                        <li><a href="carrito.html"><i class="fas fa-chevron-right"></i> Carrito</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-col">
+                    <h4 class="footer-title">Mi Cuenta</h4>
+                    <ul class="footer-links">
+                        <li><a href="login.html"><i class="fas fa-chevron-right"></i> Iniciar Sesión</a></li>
+                        <li><a href="registro.html"><i class="fas fa-chevron-right"></i> Registrarse</a></li>
+                        <li><a href="#" id="footer-orders"><i class="fas fa-chevron-right"></i> Mis Pedidos</a></li>
+                        <li><a href="#" id="footer-profile"><i class="fas fa-chevron-right"></i> Mi Perfil</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-col">
+                    <h4 class="footer-title">Contacto</h4>
+                    <ul class="footer-contact">
+                        <li><i class="fas fa-phone"></i> +1 234 567 890</li>
+                        <li><i class="fas fa-envelope"></i> info@fzstore.com</li>
+                        <li><i class="fas fa-map-marker-alt"></i> Ciudad, País</li>
+                        <li><i class="fas fa-clock"></i> Lun-Vie: 9:00-18:00</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                
+        <div class="footer-links">
+          <a href="quienes-somos.html">Quiénes somos</a>
+          <a href="terminos.html">Términos y Condiciones</a>
+          <a href="privacidad.html">Política de Privacidad</a>
+          <a href="aviso-legal.html">Aviso Legal</a>
+        </div>
+<div class="copyright">
+                    <p>&copy; 2024 F&Z Store. Todos los derechos reservados.</p>
+                </div>
+                <div class="footer-legal">
+                    <a href="#">Términos y Condiciones</a>
+                    <a href="#">Política de Privacidad</a>
+                    <a href="#">Aviso Legal</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <script src="js/helpers.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/carrito.js"></script>
+    <script src="js/checkout.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

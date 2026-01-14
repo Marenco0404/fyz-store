@@ -1,0 +1,56 @@
+╔════════════════════════════════════════════════════════════════╗
+║                                                                ║
+║         3 COMANDOS QUE NECESITAS SABER (¡Y SOLO 3!)           ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
+
+COMANDO 1: Instalar (una sola vez)
+────────────────────────────────────────────────────────────────
+
+npm install -g firebase-tools
+
+Qué hace: Instala Firebase CLI en tu computadora
+Cuándo: Una sola vez, al principio
+Cuánto tarda: 1-2 minutos
+
+
+COMANDO 2: Preparar (una sola vez)
+────────────────────────────────────────────────────────────────
+
+firebase functions:config:set stripe.secret="TU_STRIPE_SECRET_KEY"
+
+Qué hace: Configura tu clave secreta de Stripe
+Cuándo: Una sola vez, antes del primer despliegue
+Cuánto tarda: 5-10 segundos
+
+
+COMANDO 3: Desplegar (cada vez que cambies algo)
+────────────────────────────────────────────────────────────────
+
+firebase deploy
+
+Qué hace: Sube tu sitio a la web
+Cuándo: Cada vez que cambies HTML, CSS, o JavaScript
+Cuánto tarda: 2-3 minutos
+
+
+SECUENCIA COMPLETA (Primera vez)
+════════════════════════════════════════════════════════════════
+
+1. npm install -g firebase-tools
+2. firebase login
+3. cd functions && npm install && cd ..
+4. firebase functions:config:set stripe.secret="sk_test_..."
+5. firebase deploy
+
+✅ ¡Listo! Tu sitio está en: https://fyzperfumeria.web.app
+
+
+EN FUTURO (Cada actualización)
+════════════════════════════════════════════════════════════════
+
+1. Edita archivos (HTML, CSS, JS)
+2. firebase deploy
+3. ¡Listo!
+
+¡Eso es todo! 🎉

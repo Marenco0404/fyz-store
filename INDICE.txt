@@ -1,0 +1,219 @@
+📚 ÍNDICE DE DOCUMENTACIÓN
+══════════════════════════════════════════════════════════════════
+
+¿CUÁL LEER PRIMERO?
+──────────────────────────────────────────────────────────────────
+
+🟢 PRINCIPIANTE → Lee esto primero:
+   1. RESUMEN_FINAL.txt ← Empieza aquí (2 min)
+   2. INSTRUCCIONES_SIMPLE.txt ← Pasos fáciles (10 min)
+   3. CHECKLIST.txt ← Verificación visual
+
+🟡 DESARROLLADOR → Lee esto:
+   1. STATUS.md ← Estado del proyecto
+   2. QUICK_REFERENCE.md ← Guía técnica rápida
+   3. DEPLOYMENT.md ← Instrucciones detalladas
+
+🔴 TROUBLESHOOTING → Si algo falla:
+   1. DURANTE_DESPLIEGUE.txt ← Errores comunes
+   2. firebase functions:log ← Ver logs en tiempo real
+
+══════════════════════════════════════════════════════════════════
+
+DESCRIPCIÓN DE CADA ARCHIVO
+──────────────────────────────────────────────────────────────────
+
+📄 RESUMEN_FINAL.txt (⭐ LEE PRIMERO)
+   └─ Resumen rápido de qué está hecho y qué falta
+   └─ Tiempo de lectura: 2-3 minutos
+   └─ Para: cualquiera
+
+📄 INSTRUCCIONES_SIMPLE.txt (⭐ SEGUNDO)
+   └─ Paso a paso para desplegar
+   └─ Lenguaje simple, sin tecnicismos
+   └─ Tiempo de lectura: 5-10 minutos
+   └─ Para: personas sin experiencia técnica
+   └─ Incluye: tarjeta de prueba, URLs, soluciones básicas
+
+📄 CHECKLIST.txt
+   └─ Checklist visual del despliegue
+   └─ Tienes que ir marcando cada paso
+   └─ Tiempo de lectura: 5 minutos
+   └─ Para: verificar que no olvidaste nada
+
+📄 STATUS.md
+   └─ Estado detallado del proyecto
+   └─ Qué está completado vs qué falta
+   └─ Estructura de archivos
+   └─ Próximos pasos
+   └─ Tiempo de lectura: 10-15 minutos
+   └─ Para: entender el proyecto completamente
+
+📄 QUICK_REFERENCE.md
+   └─ Referencia técnica rápida
+   └─ URLs importantes
+   └─ Flujo de pago
+   └─ Debugging
+   └─ Tiempo de lectura: 10 minutos
+   └─ Para: desarrolladores
+
+📄 DEPLOYMENT.md
+   └─ Instrucciones detalladas de despliegue
+   └─ Configuración profesional
+   └─ Checklist de producción
+   └─ Comandos útiles
+   └─ Tiempo de lectura: 15-20 minutos
+   └─ Para: despliegue en producción
+
+📄 DEPLOY_STEPS.txt
+   └─ Pasos rápidos de despliegue
+   └─ Versión condensada de DEPLOYMENT.md
+   └─ Tiempo de lectura: 3 minutos
+   └─ Para: referencia rápida durante deploy
+
+📄 DURANTE_DESPLIEGUE.txt
+   └─ Qué esperar en cada paso del deploy
+   └─ Errores comunes y soluciones
+   └─ Outputs esperados
+   └─ Tiempo de lectura: 10 minutos
+   └─ Para: troubleshooting
+
+📄 .env.example
+   └─ Plantilla de variables de entorno
+   └─ Documentación de claves necesarias
+   └─ Para: referencia de configuración
+
+📄 .gitignore
+   └─ Archivos a excluir de Git
+   └─ Para: si usás control de versiones
+
+📄 .firebaserc
+   └─ Configuración del proyecto Firebase
+   └─ No editar (se configura automáticamente)
+
+📄 firebase.json
+   └─ Configuración de Functions + Hosting
+   └─ Donde especificar qué desplegar
+
+══════════════════════════════════════════════════════════════════
+
+CÓMO NAVEGAR POR LOS DOCUMENTOS
+──────────────────────────────────────────────────────────────────
+
+1️⃣  ¿Soy principiante?
+    → RESUMEN_FINAL.txt
+    → INSTRUCCIONES_SIMPLE.txt
+    → CHECKLIST.txt
+
+2️⃣  ¿Quiero entender el proyecto?
+    → STATUS.md
+    → QUICK_REFERENCE.md
+
+3️⃣  ¿Necesito desplegar?
+    → INSTRUCCIONES_SIMPLE.txt
+    → DEPLOY_STEPS.txt
+    → firebase deploy
+
+4️⃣  ¿Algo falla?
+    → DURANTE_DESPLIEGUE.txt
+    → firebase functions:log
+    → Buscar error en Google
+
+5️⃣  ¿Voy a producción?
+    → DEPLOYMENT.md (sección "checklist")
+
+══════════════════════════════════════════════════════════════════
+
+ESTRUCTURA DEL PROYECTO RECOMENDADA
+──────────────────────────────────────────────────────────────────
+
+Para DESARROLLO (localhost):
+   fyz_checkout_integrado_abajo/
+   ├── finalizarcompra.html ← Editar aquí
+   ├── js/
+   │   ├── checkout.js ← Editar aquí
+   │   └── firebase-config.js ← Ver claves
+   ├── functions/
+   │   └── index.js ← Ver Cloud Function
+   └── [Leer: INSTRUCCIONES_SIMPLE.txt]
+
+Para PRODUCCIÓN (web):
+   1. Edita archivos
+   2. firebase deploy
+   3. https://fyzperfumeria.web.app
+   └── [Leer: DEPLOYMENT.md]
+
+Para TROUBLESHOOTING:
+   1. Lee: DURANTE_DESPLIEGUE.txt
+   2. Ejecuta: firebase functions:log
+   3. Busca error en Google
+   └── [Leer: QUICK_REFERENCE.md para debugging]
+
+══════════════════════════════════════════════════════════════════
+
+REFERENCIAS RÁPIDAS
+──────────────────────────────────────────────────────────────────
+
+¿Cómo despliego?
+   → INSTRUCCIONES_SIMPLE.txt (sección "PASOS")
+
+¿Cuáles son los comandos?
+   → DEPLOY_STEPS.txt
+
+¿Qué hago si falla?
+   → DURANTE_DESPLIEGUE.txt
+
+¿Cuál es mi URL?
+   → https://fyzperfumeria.web.app
+
+¿Dónde veo los pedidos?
+   → Firebase Console → Firestore → pedidos
+
+¿Cómo cambio Stripe?
+   → QUICK_REFERENCE.md (sección "Debugging")
+
+¿Cómo voy a producción real?
+   → DEPLOYMENT.md (sección "checklist")
+
+══════════════════════════════════════════════════════════════════
+
+DIAGRAMA DE DECISIÓN
+──────────────────────────────────────────────────────────────────
+
+¿Primera vez usando esto?
+└─ SÍ → Lee RESUMEN_FINAL.txt
+└─ NO → Salta a INSTRUCCIONES_SIMPLE.txt
+
+¿Necesitas desplegar AHORA?
+└─ SÍ → Lee DEPLOY_STEPS.txt y ejecuta comandos
+└─ NO → Lee STATUS.md para entender mejor
+
+¿Algo falló?
+└─ SÍ → Lee DURANTE_DESPLIEGUE.txt
+└─ NO → Continúa con despliegue
+
+¿Listo para producción real?
+└─ SÍ → Lee sección checklist en DEPLOYMENT.md
+└─ NO → Sigue testeando en https://fyzperfumeria.web.app
+
+══════════════════════════════════════════════════════════════════
+
+TIPS FINALES
+──────────────────────────────────────────────────────────────────
+
+💡 Guarda estos archivos en una carpeta segura
+💡 Comparte INSTRUCCIONES_SIMPLE.txt con tu equipo
+💡 Usa CHECKLIST.txt como referencia cada vez que despliegues
+💡 Mantén firebase.json y .firebaserc sincronizados
+💡 Revisa STATUS.md regularmente para actualizaciones
+
+══════════════════════════════════════════════════════════════════
+
+¿LISTA PARA EMPEZAR?
+
+1. Lee: RESUMEN_FINAL.txt (2 min)
+2. Lee: INSTRUCCIONES_SIMPLE.txt (10 min)
+3. Sigue: CHECKLIST.txt
+4. Desplega: firebase deploy
+
+¡Éxito! 🚀

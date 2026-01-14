@@ -1,0 +1,891 @@
+/**
+ * checkout.js · Checkout + Pagos (PayPal + Stripe) · Firebase v9 COMPAT
+ * -----------------------------------------------------------------------------
+ * Reglas del juego:
+ * - Toda la tienda maneja precios en COLONES (CRC) en UI, carrito y Firestore.
+ * - SOLO al momento de cobrar, se convierte a DÓLARES (USD) para los plugins.
+ *
+ * Requiere:
+ * - js/firebase-config.js (expone window.auth, window.db y window.PAYMENTS_CONFIG)
+ * - Stripe.js en el HTML: https://js.stripe.com/v3/
+ * - PayPal SDK se carga dinámicamente con tu clientId
+ */
+
+(function () {
+  "use strict";
+
+  // =================== utils ===================
+  const $ = (sel) => document.querySelector(sel);
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  function esc(s) {
+    return String(s ?? "").replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[c]));
+  }
+
+  function formatCRC(n) {
+    if (typeof window.formatCRC === "function") return window.formatCRC(n);
+    const num = Number(n || 0);
+    return "₡" + num.toLocaleString("es-CR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  }
+
+  function formatUSD(n) {
+    const num = Number(n || 0);
+    return "$" + num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function getCfg() {
+    return window.PAYMENTS_CONFIG || {};
+  }
+
+  function getFxRate() {
+    const cfg = getCfg();
+    // compat: paypalFxRate ya existe; si algún día querés separarlo, podés meter usdFxRate también
+    const fx = Number(cfg.usdFxRate || cfg.paypalFxRate || 520);
+    return fx > 0 ? fx : 520;
+  }
+
+  function crcToUsd(crc) {
+    const fx = getFxRate();
+    const usd = Number(crc || 0) / fx;
+    // redondeo a 2 decimales para plugins
+    return Math.round(usd * 100) / 100;
+  }
+
+  function usdToCents(usd) {
+    return Math.max(0, Math.round(Number(usd || 0) * 100));
+  }
+
+  function uidLike() {
+    return "TX-" + Date.now() + "-" + Math.random().toString(16).slice(2);
+  }
+
+  function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  }
+
+  // =================== CheckoutSystem ===================
+  const CheckoutSystem = {
+    stripe: null,
+    stripeElements: null,
+    stripeCard: null,
+
+    paypalRendered: false,
+    paypalSdkLoaded: false,
+
+    init() {
+      // 1) seguridad básica: si no hay carrito -> pa' fuera
+      this._guardCarritoNoVacio();
+
+      // 2) resumen
+      this._renderResumen();
+
+      // 3) flow de pasos (shipping -> pago)
+      this._bindSteps();
+
+      // 4) métodos de pago UI
+      this._bindMetodosPago();
+
+      // 5) init Stripe (monta el Element aunque no lo estén viendo todavía)
+      this._initStripe();
+
+      // 6) autocompletar shipping si hay sesión
+      this._prefillShippingFromUser();
+
+      // 7) submit tarjeta
+      const form = document.getElementById("card-form");
+      if (form) {
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          await this._pagarConTarjeta();
+        });
+      }
+
+      // 8) si el user vuelve a esta página y ya había shipping guardado, lo ponemos
+      this._hydrateShippingFromStorage();
+    },
+
+    // =================== carrito / totales ===================
+    _leerCarrito() {
+      try {
+        return JSON.parse(localStorage.getItem("fyz_carrito") || "[]");
+      } catch {
+        return [];
+      }
+    },
+
+    _calcularTotales() {
+      const items = this._leerCarrito();
+      const subtotal = items.reduce((acc, it) =>
+        acc + (Number(it.precio) || 0) * (Number(it.cantidad) || 1), 0
+      );
+      const envio = 0; // gratis por ahora
+      const total = Math.max(0, Math.round(subtotal + envio));
+      return { items, subtotal: Math.round(subtotal), envio, total };
+    },
+
+    _renderResumen() {
+      const { items, subtotal, total } = this._calcularTotales();
+
+      const list = document.getElementById("summary-items") || document.getElementById("order-items");
+      if (list) {
+        if (!items.length) {
+          list.innerHTML = `
+            <div class="empty-summary">
+              <i class="fas fa-shopping-cart"></i>
+              <p>No hay productos en el carrito</p>
+            </div>
+          `;
+        } else {
+          list.innerHTML = items.map((it) => {
+            const precio = Number(it.precio) || 0;
+            const cantidad = Number(it.cantidad) || 1;
+            const sub = precio * cantidad;
+            return `
+              <div class="order-item">
+                <div class="item-image">
+                  <img src="${esc(it.imagen)}" alt="${esc(it.nombre)}" onerror="this.src='https://via.placeholder.com/80'">
+                  <span class="item-quantity">${cantidad}</span>
+                </div>
+                <div class="item-details">
+                  <h4 class="item-name">${esc(it.nombre)}</h4>
+                  ${(() => {
+                      const po = (it.precioOriginal != null) ? Number(it.precioOriginal) : null;
+                      const tiene = (po != null && po > precio);
+                      const desc = Number(it.descuento) || 0;
+                      if (!tiene) return '<p class="item-price">' + formatCRC(precio) + ' c/u</p>';
+                      return (
+                        '<div class="item-price discount">' +
+                          '<span class="price-original">' + formatCRC(po) + '</span>' +
+                          '<span class="price-final">' + formatCRC(precio) + ' c/u</span>' +
+                          (desc > 0 ? '<span class="discount-badge">-' + desc + '%</span>' : '') +
+                        '</div>'
+                      );
+                  })()}
+                </div>
+                <div class="item-subtotal">${formatCRC(sub)}</div>
+              </div>
+            `;
+          }).join("");
+        }
+      }
+
+      setText("summary-subtotal", formatCRC(subtotal));
+      const ship = document.getElementById("summary-shipping");
+      if (ship) {
+        ship.textContent = "Gratis";
+        ship.classList.add("free-shipping");
+      }
+      setText("summary-total", formatCRC(total));
+
+      // tipcito: mostrar también el equivalente en USD (solo informativo)
+      const eq = document.getElementById("summary-total-usd");
+      if (eq) {
+        const usd = crcToUsd(total);
+        eq.textContent = `(${formatUSD(usd)} aprox.)`;
+      }
+    },
+
+    _guardCarritoNoVacio() {
+      const { items } = this._calcularTotales();
+      if (items && items.length) return;
+
+      // pequeña espera para que cargue UI
+      setTimeout(() => {
+        alert("Tu carrito está vacío. Agregá productos antes de pagar.");
+        window.location.href = "carrito.html";
+      }, 300);
+    },
+
+    // =================== pasos checkout ===================
+    _bindSteps() {
+      const shippingSection = document.getElementById("shipping-section");
+      const paymentSection = document.getElementById("payment-section");
+      const backToCartBtn = document.getElementById("back-to-cart");
+      const continueBtn = document.getElementById("continue-to-payment");
+
+      if (backToCartBtn) {
+        backToCartBtn.addEventListener("click", () => {
+          window.location.href = "carrito.html";
+        });
+      }
+
+      if (continueBtn) {
+        continueBtn.addEventListener("click", async () => {
+          const form = document.getElementById("shipping-form");
+          if (!form) return;
+
+          if (!form.checkValidity()) {
+            form.reportValidity?.();
+            alert("Revisá la información de envío (faltan campos).");
+            return;
+          }
+
+          // guardar shipping para usarlo al registrar el pedido
+          this._guardarShippingEnStorage();
+
+          // mover a paso pago
+          if (shippingSection) shippingSection.style.display = "none";
+          if (paymentSection) paymentSection.style.display = "block";
+          this._setStepActive(2); // 1=carrito,2=info,3=pago,4=confirmación (según HTML)
+
+          // asegurar PayPal listo cuando se ve el paso pago
+          await this._initPaypal(true);
+          // marcar paso pago en storage (para refresh)
+          localStorage.setItem("fyz_checkout_step","payment");
+
+        });
+      }
+
+      
+      // volver a editar envío desde el paso de pago
+      const editShippingBtn = document.getElementById("edit-shipping-btn");
+      if (editShippingBtn) {
+        editShippingBtn.addEventListener("click", () => {
+          if (paymentSection) paymentSection.style.display = "none";
+          if (shippingSection) shippingSection.style.display = "block";
+          // limpiar flag de paso pago
+          localStorage.removeItem("fyz_checkout_step");
+          this._setStepActive(1); // vuelve a info/envío
+          // scroll suave al formulario
+          shippingSection?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+        });
+      }
+// si el usuario recarga estando en el paso pago, mantenerlo (si existe flag)
+      const goPay = localStorage.getItem("fyz_checkout_step") === "payment";
+      if (goPay && shippingSection && paymentSection) {
+        shippingSection.style.display = "none";
+        paymentSection.style.display = "block";
+        this._setStepActive(2);
+        this._initPaypal(false);
+      }
+    },
+
+    _setStepActive(stepIndexZeroBased) {
+      const steps = document.querySelectorAll(".checkout-steps .step");
+      steps.forEach((s, idx) => {
+        if (idx <= stepIndexZeroBased) s.classList.add("active");
+        else s.classList.remove("active");
+      });
+      // guardamos estado simple
+      if (stepIndexZeroBased >= 2) localStorage.setItem("fyz_checkout_step", "payment");
+      else localStorage.removeItem("fyz_checkout_step");
+    },
+
+    // =================== shipping (guardar / cargar) ===================
+    _leerShippingFromForm() {
+      const g = (id) => (document.getElementById(id) || {}).value || "";
+      return {
+        firstName: g("shipping-first-name").trim(),
+        lastName: g("shipping-last-name").trim(),
+        email: g("shipping-email").trim(),
+        phone: g("shipping-phone").trim(),
+        address: g("shipping-address").trim(),
+        city: g("shipping-city").trim(),
+        zip: g("shipping-zip").trim(),
+        country: (document.getElementById("shipping-country") || {}).value || "Costa Rica"
+      };
+    },
+
+    _guardarShippingEnStorage() {
+      const shipping = this._leerShippingFromForm();
+      localStorage.setItem("fyz_checkout_shipping", JSON.stringify(shipping));
+    },
+
+    _hydrateShippingFromStorage() {
+      try {
+        const raw = localStorage.getItem("fyz_checkout_shipping");
+        if (!raw) return;
+        const s = JSON.parse(raw);
+        const set = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
+
+        set("shipping-first-name", s.firstName);
+        set("shipping-last-name", s.lastName);
+        set("shipping-email", s.email);
+        set("shipping-phone", s.phone);
+        set("shipping-address", s.address);
+        set("shipping-city", s.city);
+        set("shipping-zip", s.zip);
+        set("shipping-country", s.country);
+      } catch {}
+    },
+
+    _prefillShippingFromUser() {
+      if (typeof auth === "undefined" || !auth) return;
+
+      // esperar auth state (currentUser a veces tarda)
+      auth.onAuthStateChanged(async (user) => {
+        if (!user) return;
+
+        // set email aunque no haya doc
+        const emailEl = document.getElementById("shipping-email");
+        if (emailEl && !emailEl.value) emailEl.value = user.email || "";
+
+        if (typeof db === "undefined" || !db) return;
+
+        try {
+          const doc = await db.collection("usuarios").doc(user.uid).get();
+          if (!doc.exists) return;
+
+          const u = doc.data() || {};
+          if (u.nombre) {
+            const parts = String(u.nombre).trim().split(/\s+/);
+            const first = parts[0] || "";
+            const last = parts.slice(1).join(" ") || "";
+            const fn = document.getElementById("shipping-first-name");
+            const ln = document.getElementById("shipping-last-name");
+            if (fn && !fn.value) fn.value = first;
+            if (ln && !ln.value) ln.value = last;
+          }
+          const tel = document.getElementById("shipping-phone");
+          if (tel && !tel.value && u.telefono) tel.value = u.telefono;
+
+          const dir = document.getElementById("shipping-address");
+          if (dir && !dir.value && u.direccion) dir.value = u.direccion;
+
+        } catch (e) {
+          console.warn("prefillShippingFromUser error:", e);
+        }
+      });
+    },
+
+    // =================== métodos de pago UI ===================
+    _bindMetodosPago() {
+      const methods = document.querySelectorAll(".payment-method");
+      const contents = document.querySelectorAll(".method-content");
+
+      methods.forEach((m) => {
+        m.addEventListener("click", async () => {
+          methods.forEach((x) => x.classList.remove("active"));
+          m.classList.add("active");
+
+          const method = m.dataset.method;
+          contents.forEach((c) => c.classList.remove("active"));
+          const target = document.getElementById(`${method}-content`);
+          if (target) target.classList.add("active");
+
+          // si vuelven a PayPal, re-render si hace falta
+          if (method === "paypal") await this._initPaypal(false);
+        });
+      });
+    },
+
+    // =================== PAYPAL ===================
+    async _loadPayPalSdk() {
+      if (typeof paypal !== "undefined") {
+        this.paypalSdkLoaded = true;
+        return true;
+      }
+
+      const cfg = getCfg();
+      const clientId = cfg.paypalClientId;
+      const paypalCurrency = String(cfg.paypalCurrency || "USD").toUpperCase();
+      const env = String(cfg.paypalEnv || "sandbox").toLowerCase();
+
+      if (!clientId || clientId.includes("PON_AQUI")) {
+        console.warn("⚠️ Falta PAYPAL clientId en window.PAYMENTS_CONFIG");
+        return false;
+      }
+
+      return new Promise((resolve) => {
+        const s = document.createElement("script");
+        // En sandbox algunas cuentas fallan al habilitar "card" como funding.
+        // Dejamos PayPal estándar (buttons) para máxima compatibilidad.
+        const base = "https://www.paypal.com/sdk/js";
+        const params = new URLSearchParams({
+          "client-id": clientId,
+          currency: paypalCurrency,
+          intent: "capture",
+          components: "buttons",
+          locale: "es_ES",
+          // reduce chances of sandbox edge-cases
+          "disable-funding": "paylater"
+        });
+        if (env === "sandbox") {
+          params.set("debug", "true");
+        }
+        s.src = `${base}?${params.toString()}`;
+        s.async = true;
+        s.onload = () => {
+          this.paypalSdkLoaded = true;
+          resolve(true);
+        };
+        s.onerror = () => resolve(false);
+        document.head.appendChild(s);
+      });
+    },
+
+    _showCheckoutError(msg) {
+      const box = document.getElementById("checkout-error");
+      if (box) {
+        box.textContent = msg;
+        box.style.display = "block";
+      } else {
+        alert(msg);
+      }
+    },
+
+    _clearCheckoutError() {
+      const box = document.getElementById("checkout-error");
+      if (box) box.style.display = "none";
+    },
+
+    async _initPaypal(forceRerender) {
+      const container = document.getElementById("paypal-button-container");
+      if (!container) return;
+
+      const ok = await this._loadPayPalSdk();
+      if (!ok || typeof paypal === "undefined") return;
+
+      if (this.paypalRendered && forceRerender) {
+        container.innerHTML = "";
+        this.paypalRendered = false;
+      }
+      if (this.paypalRendered) return;
+
+      const { total, items } = this._calcularTotales();
+      if (!items.length || total <= 0) {
+        container.innerHTML = `<div class="empty-summary" style="margin-top:12px;"><p>Agregá productos al carrito para pagar.</p></div>`;
+        return;
+      }
+
+      const usdTotal = crcToUsd(total);
+
+      paypal.Buttons({
+        locale: "es_ES",
+        style: { layout: "vertical" },
+
+        createOrder: async (data, actions) => {
+          this._clearCheckoutError();
+          // shipping debe estar OK antes de cobrar
+          this._asegurarShippingListo();
+
+          // validar stock antes de crear orden
+          await this._validarStockDisponible();
+
+          // Recalcular total en caso de que el carrito cambie (seguridad)
+          const again = this._calcularTotales();
+          const usd = crcToUsd(again.total);
+          if (!usd || !isFinite(usd) || usd <= 0) {
+            throw new Error("Total USD inválido");
+          }
+
+          return actions.order.create({
+            purchase_units: [{
+              amount: { currency_code: "USD", value: String(usd.toFixed(2)) },
+              description: "Compra en F&Z Store"
+            }]
+          });
+        },
+
+        onApprove: async (data, actions) => {
+          try {
+            const details = await actions.order.capture();
+            // Captura real suele venir en purchase_units[0].payments.captures[0].id
+            const captureId =
+              details?.purchase_units?.[0]?.payments?.captures?.[0]?.id ||
+              details?.id ||
+              data?.orderID ||
+              uidLike();
+
+            const status = String(details?.status || "").toUpperCase();
+            if (status && status !== "COMPLETED") {
+              throw new Error("PayPal status: " + status);
+            }
+
+            const pedidoId = await this._postPago({
+              metodo: "paypal",
+              idTransaccion: captureId,
+              totalCRC: total,
+              totalUSD: usdTotal,
+              fxRate: getFxRate()
+            });
+
+            window.location.href = pedidoId
+              ? ("confirmacion.html?id=" + encodeURIComponent(pedidoId))
+              : "confirmacion.html";
+          } catch (err) {
+            console.error("❌ PayPal capture error:", err);
+            const msg = (err && (err.message || err.toString())) ? String(err.message || err.toString()) : "";
+            this._showCheckoutError(
+              "No se pudo completar el pago con PayPal." + (msg ? " Detalle: " + msg : "") +
+              " Si estás en sandbox, probá en incógnito / sin AdBlock."
+            );
+          }
+        },
+
+        onError: (err) => {
+          console.error("❌ PayPal error:", err);
+          this._showCheckoutError("Error con PayPal. Revisá tu Client ID (sandbox) y probá sin AdBlock.");
+        },
+
+        onCancel: () => {
+          this._showCheckoutError("Pago cancelado en PayPal.");
+        }
+      }).render("#paypal-button-container");
+
+      this.paypalRendered = true;
+    },
+
+    inicializarPayPal() {
+      // compat con scripts viejos
+      return this._initPaypal(true);
+    },
+
+    // =================== STRIPE ===================
+    _initStripe() {
+      const cfg = getCfg();
+      const pk = cfg.stripePublishableKey;
+
+      if (!pk || pk.includes("PON_AQUI")) {
+        console.warn("⚠️ Falta Stripe publishable key en window.PAYMENTS_CONFIG");
+
+        // UI: bloquear método tarjeta y avisar
+        const mount = document.getElementById("stripe-card-element");
+        if (mount) {
+          // agregamos clase para overlay del mensaje
+          const wrap = mount.closest(".card-input") || mount.parentElement;
+          const section = mount.closest(".payment-method") || mount.closest(".payment-option") || mount.closest("section") || mount.parentElement;
+          (section || mount.parentElement)?.classList?.add("stripe-disabled");
+        }
+        const errBox = document.getElementById("stripe-card-errors") || document.getElementById("checkout-error");
+        if (errBox) {
+          errBox.textContent = "Stripe no está configurado. Pegá tu pk_test en js/firebase-config.js (stripePublishableKey) y recargá.";
+          errBox.style.display = "block";
+        }
+        const payBtn = document.getElementById("pay-with-card");
+        if (payBtn) {
+          payBtn.disabled = true;
+          payBtn.title = "Configurá Stripe (pk_test) para habilitar este pago.";
+          payBtn.classList.add("disabled");
+        }
+        return;
+      }
+      if (typeof Stripe === "undefined") {
+        console.warn("⚠️ Stripe.js no está cargado. Asegurate de tener <script src='https://js.stripe.com/v3/'></script>");
+        return;
+      }
+
+      try {
+        this.stripe = Stripe(pk);
+        this.stripeElements = this.stripe.elements();
+
+        const mount = document.getElementById("stripe-card-element");
+        if (mount) {
+          this.stripeCard = this.stripeElements.create("card", {
+            hidePostalCode: true,
+            style: {
+              base: {
+                color: "#ffffff",
+                fontFamily: "inherit",
+                fontSize: "16px",
+                "::placeholder": { color: "rgba(255,255,255,.45)" }
+              },
+              invalid: { color: "#ef4444" }
+            }
+          });
+          this.stripeCard.mount("#stripe-card-element");
+          const payBtn = document.getElementById("pay-with-card");
+          if (payBtn) { payBtn.disabled = false; payBtn.title = ""; payBtn.classList.remove("disabled"); }
+
+
+          this.stripeCard.on("change", (event) => {
+            const elErr = document.getElementById("stripe-card-errors");
+            if (elErr) elErr.textContent = event.error ? event.error.message : "";
+          });
+        }
+      } catch (e) {
+        console.error("❌ Stripe init error:", e);
+      }
+    },
+
+    _asegurarShippingListo() {
+      const form = document.getElementById("shipping-form");
+      if (!form) return true;
+      if (!form.checkValidity()) {
+        form.reportValidity?.();
+        throw new Error("Shipping inválido");
+      }
+      this._guardarShippingEnStorage();
+      return true;
+    },
+
+    async _pagarConTarjeta() {
+      const btn = document.getElementById("pay-with-card");
+      if (btn) btn.disabled = true;
+
+      try {
+        this._asegurarShippingListo();
+
+        const { total, items } = this._calcularTotales();
+        if (!items.length || total <= 0) throw new Error("Carrito vacío");
+        if (!this.stripe || !this.stripeCard) throw new Error("Stripe no inicializado");
+
+        // 1) validar stock antes de cobrar
+        await this._validarStockDisponible();
+
+        // 2) crear payment intent (server) en USD (centavos)
+        const usdTotal = crcToUsd(total);
+        const amountCents = usdToCents(usdTotal);
+
+        const { clientSecret } = await this._crearPaymentIntent({
+          amountCents,
+          currency: "usd",
+          totalCRC: total,
+          fxRate: getFxRate(),
+          items
+        });
+
+        if (!clientSecret) throw new Error("No se pudo obtener clientSecret.");
+
+        // 3) confirmar pago
+        const name = (document.getElementById("card-name") || {}).value || "";
+        const result = await this.stripe.confirmCardPayment(clientSecret, {
+          payment_method: {
+            card: this.stripeCard,
+            billing_details: { name }
+          }
+        });
+
+        if (result.error) {
+          const elErr = document.getElementById("stripe-card-errors");
+          if (elErr) elErr.textContent = result.error.message || "Error de pago.";
+          throw result.error;
+        }
+
+        const pi = result.paymentIntent;
+        if (!pi || pi.status !== "succeeded") throw new Error("Pago no completado.");
+
+        const pedidoId = await this._postPago({
+          metodo: "tarjeta",
+          idTransaccion: pi.id,
+          totalCRC: total,
+          totalUSD: usdTotal,
+          fxRate: getFxRate()
+        });
+
+        window.location.href = pedidoId
+          ? ("confirmacion.html?id=" + encodeURIComponent(pedidoId))
+          : "confirmacion.html";
+      } catch (err) {
+        console.error("❌ Error tarjeta:", err);
+        const msgError = err?.message || String(err) || "Error desconocido";
+        alert(`❌ Error en pago:\n\n${msgError}\n\nVerificá:\n- Cloud Functions desplegadas\n- Llaves de Stripe correctas\n- Consola del navegador para más detalles`);
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    },
+
+    _functionsUrl(path) {
+      const cfg = getCfg();
+      const region = cfg.functionsRegion || "us-central1";
+      const projectId = (firebase && firebase.app && firebase.app().options && firebase.app().options.projectId)
+        ? firebase.app().options.projectId
+        : null;
+      if (!projectId) return null;
+      
+      // En producción, usa HTTPS automáticamente
+      // En desarrollo local, también usa HTTPS (Firebase emulators soporta HTTP)
+      return `https://${region}-${projectId}.cloudfunctions.net/${path}`;
+    },
+
+    async _crearPaymentIntent({ amountCents, currency, totalCRC, fxRate, items }) {
+      const url = this._functionsUrl("createPaymentIntent");
+      if (!url) throw new Error("No se pudo armar URL de Cloud Function.");
+
+      console.log("🔗 URL de función:", url);
+      console.log("📦 Payload:", { amountCents, currency, totalCRC, fxRate, itemsCount: items?.length });
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amountCents: Number(amountCents) || 0,
+          currency: String(currency || "usd").toLowerCase(),
+          totalCRC: Number(totalCRC) || 0,
+          fxRate: Number(fxRate) || getFxRate(),
+          items: (items || []).map(it => ({
+            id: String(it.id),
+            nombre: String(it.nombre || ""),
+            cantidad: Number(it.cantidad) || 1,
+            precioCRC: Number(it.precio) || 0
+          }))
+        })
+      });
+
+      console.log("📡 Response status:", res.status, res.statusText);
+      const data = await res.json().catch((e) => {
+        console.error("❌ JSON parse error:", e);
+        return {};
+      });
+      console.log("📋 Response data:", data);
+
+      if (!res.ok) {
+        const errMsg = data.error || `HTTP ${res.status}: ${res.statusText}`;
+        throw new Error(`CloudFunction error: ${errMsg}`);
+      }
+      return data;
+    },
+
+    // =================== post-pago ===================
+    async _postPago({ metodo, idTransaccion, totalCRC, totalUSD, fxRate }) {
+      // descontar stock
+      await this._descontarStockEnCompra();
+
+      // registrar pedido
+      const pedidoId = await this._registrarPedido({ metodo, idTransaccion, totalCRC, totalUSD, fxRate });
+
+      // guardar confirmación local (para confirmacion.html)
+      // guardar confirmación local (para confirmacion.html) + snapshot (items/envío)
+      const items = this._leerCarrito();
+      let shipping = null;
+      try { shipping = JSON.parse(localStorage.getItem("fyz_checkout_shipping") || "null"); } catch {}
+      this._guardarConfirmacion({ pedidoId, metodo, idTransaccion, totalCRC, totalUSD, fxRate, items, shipping });
+
+      // limpiar carrito + step
+      this._limpiarCarrito();
+      localStorage.removeItem("fyz_checkout_step");
+
+      return pedidoId;
+    },
+
+    // =================== stock ===================
+    async _validarStockDisponible() {
+      const items = this._leerCarrito();
+      if (!items.length) throw new Error("Carrito vacío");
+
+      if (typeof db === "undefined" || !db) {
+        console.warn("⚠️ Firestore no disponible; no se pudo validar stock.");
+        return true;
+      }
+
+      for (const it of items) {
+        const id = String(it.id);
+        const qty = Math.max(1, parseInt(it.cantidad, 10) || 1);
+
+        const snap = await db.collection("productos").doc(id).get();
+        if (!snap.exists) throw new Error(`Producto no existe: ${id}`);
+
+        const stock = Number((snap.data() || {}).stock ?? 0);
+        if (stock < qty) throw new Error(`Stock insuficiente para "${it.nombre}".`);
+      }
+
+      return true;
+    },
+
+    async _descontarStockEnCompra() {
+      const items = this._leerCarrito();
+      if (!items.length) throw new Error("Carrito vacío");
+
+      if (typeof db === "undefined" || !db) {
+        console.warn("⚠️ Firestore no disponible; no se puede descontar stock.");
+        return true;
+      }
+
+      await db.runTransaction(async (tx) => {
+        const refs = items.map(it => db.collection("productos").doc(String(it.id)));
+        const snaps = await Promise.all(refs.map(r => tx.get(r)));
+
+        for (let i = 0; i < items.length; i++) {
+          const it = items[i];
+          const qty = Math.max(1, parseInt(it.cantidad, 10) || 1);
+          const snap = snaps[i];
+
+          if (!snap.exists) throw new Error(`Producto no existe: ${String(it.id)}`);
+
+          const stock = Number((snap.data() || {}).stock ?? 0);
+          if (stock < qty) throw new Error(`Stock insuficiente para "${it.nombre}".`);
+        }
+
+        for (let i = 0; i < items.length; i++) {
+          const it = items[i];
+          const qty = Math.max(1, parseInt(it.cantidad, 10) || 1);
+
+          const ref = refs[i];
+          const snap = snaps[i];
+          const stock = Number((snap.data() || {}).stock ?? 0);
+
+          tx.update(ref, { stock: stock - qty });
+        }
+      });
+
+      return true;
+    },
+
+    // =================== pedidos ===================
+    async _registrarPedido({ metodo, idTransaccion, totalCRC, totalUSD, fxRate }) {
+      try {
+        if (typeof db === "undefined" || !db) return;
+
+        const user = (typeof auth !== "undefined" && auth) ? auth.currentUser : null;
+        const items = this._leerCarrito();
+        if (!items.length) return;
+
+        let shipping = null;
+        try {
+          shipping = JSON.parse(localStorage.getItem("fyz_checkout_shipping") || "null");
+        } catch {}
+
+        const ref = await db.collection("pedidos").add({
+          usuarioId: user ? user.uid : null,
+          email: user ? user.email : (shipping?.email || null),
+          shipping: shipping || null,
+
+          items,
+          totalCRC: Number(totalCRC) || 0,
+          totalUSD: Number(totalUSD) || 0,
+          fxRate: Number(fxRate) || getFxRate(),
+
+          metodoPago: metodo,
+          idTransaccion,
+
+          estado: "pago_completado",
+          historialEstados: [{ estado: "pago_completado", fecha: new Date().toISOString() }],
+
+          fecha: new Date().toISOString()
+        });
+
+        console.log("✅ Pedido guardado");
+        return ref.id;
+      } catch (err) {
+        console.error("❌ Error pedido:", err);
+      }
+    },
+
+    _limpiarCarrito() {
+      localStorage.removeItem("fyz_carrito");
+    },
+
+    _guardarConfirmacion({ pedidoId, metodo, idTransaccion, totalCRC, totalUSD, fxRate, items, shipping }) {
+      localStorage.setItem("fyz_confirmacion_pago", JSON.stringify({
+        pedidoId: pedidoId || null,
+        metodoPago: metodo,
+        idTransaccion,
+        totalCRC,
+        totalUSD,
+        fxRate,
+        items: Array.isArray(items) ? items : [],
+        shipping: shipping || null,
+        fecha: new Date().toISOString()
+      }));
+    }
+  };
+
+  // Export
+  window.checkout = CheckoutSystem;
+
+  document.addEventListener("DOMContentLoaded", () => {
+    try {
+      CheckoutSystem.init();
+    } catch (e) {
+      console.error("❌ Checkout init error:", e);
+    }
+  });
+})();

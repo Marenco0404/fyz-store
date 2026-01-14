@@ -1,0 +1,49 @@
+👉 START HERE
+═══════════════════════════════════════════════════════════════════
+
+¿QUIERES SUBIR TU TIENDA A LA WEB?
+
+Lee estos 3 archivos en orden:
+
+1️⃣  RESUMEN_FINAL.txt
+    (2 minutos - Entiendes qué está hecho)
+
+2️⃣  3_COMANDOS.txt
+    (1 minuto - Los 3 comandos que necesitas)
+
+3️⃣  INSTRUCCIONES_SIMPLE.txt
+    (10 minutos - Paso a paso fácil)
+
+Después:
+➡️  Instala Node.js: https://nodejs.org
+➡️  Ejecuta los comandos
+➡️  ¡Tu sitio está en vivo!
+
+═══════════════════════════════════════════════════════════════════
+
+¿Está todo confuso?
+
+→ Lee INDICE.txt para ver todos los archivos disponibles
+
+═══════════════════════════════════════════════════════════════════
+
+¿Necesitas ayuda en específico?
+
+❌ "¿Cómo despliego?"
+   → INSTRUCCIONES_SIMPLE.txt
+
+❌ "¿Qué comandos ejecuto?"
+   → 3_COMANDOS.txt
+
+❌ "¿Qué esperar cuando despliego?"
+   → DURANTE_DESPLIEGUE.txt
+
+❌ "¿Qué hago si falla?"
+   → DURANTE_DESPLIEGUE.txt (errores comunes)
+
+❌ "¿Cómo voy a dinero real?"
+   → DEPLOYMENT.md (checklist de producción)
+
+═══════════════════════════════════════════════════════════════════
+
+¡Adelante! 🚀
