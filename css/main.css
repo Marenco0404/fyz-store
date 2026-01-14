@@ -394,7 +394,7 @@ a:hover {
     height: 100%;
     opacity: 0;
     transition: opacity 1s ease-in-out;
-    background-size: cover;
+    background-size: contain;
     background-position: center;
     background-repeat: no-repeat;
 }
