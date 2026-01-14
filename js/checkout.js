@@ -189,29 +189,37 @@
             const precio = Number(it.precio) || 0;
             const cantidad = Number(it.cantidad) || 1;
             const sub = precio * cantidad;
+            const precioOriginal = (it.precioOriginal != null) ? Number(it.precioOriginal) : null;
+            const tieneDescuento = (precioOriginal != null && precioOriginal > precio);
+            const descuento = Number(it.descuento) || 0;
+            
+            let precioHTML = `<p class="item-price">${formatCRC(precio)}</p>`;
+            if (tieneDescuento) {
+              precioHTML = `
+                <div class="item-price-section">
+                  <span class="item-price-original">${formatCRC(precioOriginal)}</span>
+                  <span class="item-price">${formatCRC(precio)}</span>
+                  ${descuento > 0 ? `<span class="item-discount">-${descuento}%</span>` : ''}
+                </div>
+              `;
+            }
+            
             return `
               <div class="order-item">
                 <div class="item-image">
                   <img src="${esc(it.imagen)}" alt="${esc(it.nombre)}" onerror="this.src='https://via.placeholder.com/80'">
-                  <span class="item-quantity">${cantidad}</span>
                 </div>
                 <div class="item-details">
                   <h4 class="item-name">${esc(it.nombre)}</h4>
-                  ${(() => {
-                      const po = (it.precioOriginal != null) ? Number(it.precioOriginal) : null;
-                      const tiene = (po != null && po > precio);
-                      const desc = Number(it.descuento) || 0;
-                      if (!tiene) return '<p class="item-price">' + formatCRC(precio) + ' c/u</p>';
-                      return (
-                        '<div class="item-price discount">' +
-                          '<span class="price-original">' + formatCRC(po) + '</span>' +
-                          '<span class="price-final">' + formatCRC(precio) + ' c/u</span>' +
-                          (desc > 0 ? '<span class="discount-badge">-' + desc + '%</span>' : '') +
-                        '</div>'
-                      );
-                  })()}
+                  <div class="item-meta">
+                    <span class="qty">x${cantidad}</span>
+                    <span>${formatCRC(precio)}</span>
+                  </div>
+                  ${tieneDescuento ? `<div style="margin-top: 0.5rem;">${precioHTML}</div>` : ''}
                 </div>
-                <div class="item-subtotal">${formatCRC(sub)}</div>
+                <div style="text-align: right; flex-shrink: 0;">
+                  <div class="item-price">${formatCRC(sub)}</div>
+                </div>
               </div>
             `;
           }).join("");
