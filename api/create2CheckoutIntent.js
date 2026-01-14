@@ -74,6 +74,13 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  // Verificar que Private Key está configurada
+  const privateKey = process.env.TWOCHECKOUT_PRIVATE_KEY;
+  if (!privateKey) {
+    console.error("❌ TWOCHECKOUT_PRIVATE_KEY no configurada en Vercel");
+    return res.status(500).json({ error: "Payment gateway not configured" });
+  }
+
   const clientIp = req.headers["x-forwarded-for"]?.split(",")[0].trim() || 
                    req.socket?.remoteAddress || 
                    "unknown";
