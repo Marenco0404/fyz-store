@@ -101,15 +101,17 @@
 
 .checkout-grid {
   display: grid;
-  grid-template-columns: minmax(300px, 1fr) minmax(280px, 350px);
+  grid-template-columns: 1fr 350px;
   gap: 2rem;
   width: 100%;
+  justify-items: stretch;
 }
 
 .checkout-left {
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  width: 100%;
 }
 
 .checkout-right {
