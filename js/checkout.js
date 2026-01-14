@@ -548,27 +548,66 @@
         return;
       }
 
-      // Inicializar 2Checkout
+      // Cargar SDK si no existe
       if (typeof TwoCheckout === "undefined") {
-        container.innerHTML = `<div style="color:red; padding:10px;">❌ 2Checkout SDK no cargó</div>`;
-        return;
+        console.log("📥 Cargando 2Checkout SDK...");
+        await this._load2CheckoutSdk();
+        
+        if (typeof TwoCheckout === "undefined") {
+          container.innerHTML = `<div style="color:red; padding:10px;">❌ 2Checkout SDK no disponible</div>`;
+          return;
+        }
       }
 
-      TwoCheckout.setPublishableKey(publicKey);
+      try {
+        TwoCheckout.setPublishableKey(publicKey);
 
-      // Mostrar el formulario
-      form.style.display = "block";
+        // Mostrar el formulario
+        form.style.display = "block";
 
-      // Crear botón de pago
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "btn-pay btn-2checkout";
-      btn.innerHTML = `<i class="fas fa-credit-card"></i> Pagar ${formatCRC(total)}`;
-      btn.onclick = (e) => this._handle2CheckoutPayment(e);
-      
-      // Limpiar contenedor y agregar botón
-      container.innerHTML = "";
-      container.appendChild(btn);
+        // Crear botón de pago
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn-pay btn-2checkout";
+        btn.innerHTML = `<i class="fas fa-credit-card"></i> Pagar ${formatCRC(total)}`;
+        btn.onclick = (e) => this._handle2CheckoutPayment(e);
+        
+        // Limpiar contenedor y agregar botón
+        container.innerHTML = "";
+        container.appendChild(btn);
+        
+        console.log("✅ 2Checkout iniciado correctamente");
+      } catch (error) {
+        console.error("Error iniciando 2Checkout:", error);
+        container.innerHTML = `<div style="color:red; padding:10px;">❌ Error: ${error.message}</div>`;
+      }
+    },
+
+    async _load2CheckoutSdk() {
+      return new Promise((resolve) => {
+        // Si ya existe, resolver inmediatamente
+        if (typeof TwoCheckout !== "undefined") {
+          resolve(true);
+          return;
+        }
+
+        // Crear script
+        const script = document.createElement("script");
+        script.src = "https://www.2checkout.com/static/v1/2checkout.js";
+        script.async = true;
+
+        script.onload = () => {
+          console.log("✅ 2Checkout SDK cargado");
+          resolve(true);
+        };
+
+        script.onerror = (err) => {
+          console.error("❌ Error cargando 2Checkout SDK:", err);
+          resolve(false);
+        };
+
+        document.head.appendChild(script);
+      });
     },
 
     async _handle2CheckoutPayment(e) {
