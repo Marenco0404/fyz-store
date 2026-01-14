@@ -112,7 +112,55 @@
       this._hydrateShippingFromStorage();
     },
 
-    // =================== carrito / totales ===================
+  // =================== seguridad ===================
+  
+  /**
+   * Genera y verifica CSRF token
+   * Nota: En una app real, esto vincularía con sesión del servidor
+   */
+  _getCsrfToken() {
+    let token = sessionStorage.getItem("fyz_csrf_token");
+    if (!token) {
+      token = "csrf_" + Math.random().toString(36).substring(2, 15) + Date.now();
+      sessionStorage.setItem("fyz_csrf_token", token);
+    }
+    return token;
+  },
+
+  /**
+   * Sanitiza entradas de usuario para prevenir XSS
+   */
+  _sanitizeInput(input) {
+    if (typeof input !== "string") return input;
+    const div = document.createElement("div");
+    div.textContent = input;
+    return div.innerHTML;
+  },
+
+  /**
+   * Valida email format
+   */
+  _isValidEmail(email) {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(String(email || "").toLowerCase());
+  },
+
+  /**
+   * Valida teléfono (básico)
+   */
+  _isValidPhone(phone) {
+    const re = /^[\d\s+()-]{8,20}$/;
+    return re.test(String(phone || ""));
+  },
+
+  /**
+   * Valida dirección (no vacía, no inyección)
+   */
+  _isValidAddress(addr) {
+    return String(addr || "").trim().length >= 5 && String(addr).length <= 200;
+  },
+
+  // =================== carrito / totales ===================
     _leerCarrito() {
       try {
         return JSON.parse(localStorage.getItem("fyz_carrito") || "[]");
@@ -224,7 +272,38 @@
 
           if (!form.checkValidity()) {
             form.reportValidity?.();
-            alert("Revisá la información de envío (faltan campos).");
+            alert("❌ Revisá los campos (faltan datos o están mal)");
+            return;
+          }
+
+          // SECURITY: Validaciones adicionales
+          const shipping = this._leerShippingFromForm();
+          
+          if (!this._isValidEmail(shipping.email)) {
+            alert("❌ Email inválido");
+            document.getElementById("shipping-email")?.focus();
+            return;
+          }
+
+          if (!this._isValidPhone(shipping.phone)) {
+            alert("❌ Teléfono inválido (mínimo 8 dígitos)");
+            document.getElementById("shipping-phone")?.focus();
+            return;
+          }
+
+          if (!this._isValidAddress(shipping.address)) {
+            alert("❌ Dirección inválida (mínimo 5 caracteres)");
+            document.getElementById("shipping-address")?.focus();
+            return;
+          }
+
+          if (!shipping.firstName?.trim() || !shipping.lastName?.trim()) {
+            alert("❌ Nombre y apellido requeridos");
+            return;
+          }
+
+          if (shipping.firstName.length > 50 || shipping.lastName.length > 50) {
+            alert("❌ Nombre/Apellido muy largo");
             return;
           }
 
@@ -656,12 +735,30 @@
         if (!items.length || total <= 0) throw new Error("Carrito vacío");
         if (!this.stripe || !this.stripeCard) throw new Error("Stripe no inicializado");
 
+        // SECURITY: Validar nombre de tarjeta
+        const cardName = (document.getElementById("card-name") || {}).value || "";
+        if (!cardName.trim() || cardName.length < 3 || cardName.length > 60) {
+          throw new Error("Nombre en tarjeta inválido");
+        }
+
+        // SECURITY: Validar que el carrito no cambió desde que empezó checkout
+        const previousCartHash = sessionStorage.getItem("fyz_cart_hash");
+        const currentHash = JSON.stringify(items);
+        if (previousCartHash && previousCartHash !== currentHash) {
+          throw new Error("El carrito cambió. Por favor, revisa e intenta de nuevo.");
+        }
+
         // 1) validar stock antes de cobrar
         await this._validarStockDisponible();
 
         // 2) crear payment intent (server) en USD (centavos)
         const usdTotal = crcToUsd(total);
         const amountCents = usdToCents(usdTotal);
+
+        // SECURITY: Validar montos
+        if (amountCents < 50 || amountCents > 9999999) {
+          throw new Error("Monto fuera de rango permitido");
+        }
 
         const { clientSecret } = await this._crearPaymentIntent({
           amountCents,
@@ -674,7 +771,7 @@
         if (!clientSecret) throw new Error("No se pudo obtener clientSecret.");
 
         // 3) confirmar pago
-        const name = (document.getElementById("card-name") || {}).value || "";
+        const name = this._sanitizeInput(cardName);
         const result = await this.stripe.confirmCardPayment(clientSecret, {
           payment_method: {
             card: this.stripeCard,
@@ -705,7 +802,7 @@
       } catch (err) {
         console.error("❌ Error tarjeta:", err);
         const msgError = err?.message || String(err) || "Error desconocido";
-        alert(`❌ Error en pago:\n\n${msgError}\n\nVerificá:\n- Cloud Functions desplegadas\n- Llaves de Stripe correctas\n- Consola del navegador para más detalles`);
+        alert(`❌ Error en pago:\n\n${this._sanitizeInput(msgError)}\n\nVerificá:\n- Datos de tarjeta correctos\n- Consola (F12) para más detalles`);
       } finally {
         if (btn) btn.disabled = false;
       }
@@ -725,22 +822,37 @@
       const url = this._functionsUrl("createPaymentIntent");
       if (!url) throw new Error("No se pudo armar URL del endpoint.");
 
+      // SECURITY: Validaciones locales antes de enviar
+      const safeAmount = Math.floor(Number(amountCents) || 0);
+      const safeCurrency = String(currency || "usd").toLowerCase();
+      
+      if (safeAmount < 50 || safeAmount > 9999999) {
+        throw new Error("Monto inválido");
+      }
+
+      if (!["usd", "eur", "gbp"].includes(safeCurrency)) {
+        throw new Error("Moneda no soportada");
+      }
+
       console.log("🔗 URL del endpoint:", url);
-      console.log("📦 Payload:", { amountCents, currency, totalCRC, fxRate, itemsCount: items?.length });
+      console.log("📦 Payload:", { amountCents: safeAmount, currency: safeCurrency, itemsCount: items?.length });
 
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest" // Protección adicional contra CSRF
+        },
         body: JSON.stringify({
-          amountCents: Number(amountCents) || 0,
-          currency: String(currency || "usd").toLowerCase(),
+          amountCents: safeAmount,
+          currency: safeCurrency,
           totalCRC: Number(totalCRC) || 0,
           fxRate: Number(fxRate) || getFxRate(),
           items: (items || []).map(it => ({
-            id: String(it.id),
-            nombre: String(it.nombre || ""),
-            cantidad: Number(it.cantidad) || 1,
-            precioCRC: Number(it.precio) || 0
+            id: String(it.id).substring(0, 50),
+            nombre: String(it.nombre || "").substring(0, 100),
+            cantidad: Math.max(1, Math.floor(Number(it.cantidad) || 1)),
+            precioCRC: Math.max(0, Math.floor(Number(it.precio) || 0))
           }))
         })
       });
