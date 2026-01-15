@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico Completo PayPal</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3498db;
+        }
+        .test {
+            display: flex;
+            align-items: flex-start;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            background: #f9f9f9;
+        }
+        .icon {
+            font-size: 20px;
+            width: 30px;
+            flex-shrink: 0;
+        }
+        .content {
+            flex: 1;
+            min-width: 0;
+        }
+        .label {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 4px;
+        }
+        .value {
+            color: #555;
+            font-size: 13px;
+            word-break: break-all;
+            background: white;
+            padding: 8px;
+            border-radius: 3px;
+            border: 1px solid #ddd;
+            margin-top: 4px;
+            font-family: monospace;
+        }
+        h1 {
+            color: #2c3e50;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 0;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
+        }
+        .success { border-left-color: #27ae60; }
+        .error { border-left-color: #e74c3c; }
+        .warning { border-left-color: #f39c12; }
+        .info { border-left-color: #3498db; }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        .error-log {
+            background: #ffebee;
+            border: 1px solid #ef5350;
+            border-radius: 4px;
+            padding: 12px;
+            margin-top: 10px;
+            color: #c62828;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        code {
+            background: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Diagnóstico Completo - PayPal F&Z Store</h1>
+
+    <div class="section">
+        <h2>📋 1. Cargas de Script</h2>
+        <div id="scripts-section"></div>
+    </div>
+
+    <div class="section">
+        <h2>🔧 2. Configuración</h2>
+        <div id="config-section"></div>
+    </div>
+
+    <div class="section">
+        <h2>🧪 3. Módulos</h2>
+        <div id="modules-section"></div>
+    </div>
+
+    <div class="section">
+        <h2>📦 4. Firebase</h2>
+        <div id="firebase-section"></div>
+    </div>
+
+    <div class="section">
+        <h2>🌐 5. Conectividad</h2>
+        <div id="connectivity-section"></div>
+    </div>
+
+    <div class="section">
+        <h2>⚠️ 6. Errores de Consola</h2>
+        <div id="console-errors"></div>
+        <div id="error-log" class="error-log"></div>
+    </div>
+
+    <div class="section">
+        <button onclick="runFullDiagnostics()">🚀 Ejecutar Diagnóstico Completo</button>
+        <button onclick="testPayPalSDK()">🧪 Probar Carga de SDK PayPal</button>
+        <button onclick="location.reload()">🔄 Recargar Página</button>
+    </div>
+
+    <script>
+        // Capturar errores de consola
+        const errorLog = [];
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        const originalLog = console.log;
+
+        console.error = function(...args) {
+            errorLog.push({ type: 'ERROR', msg: args.join(' '), time: new Date().toLocaleTimeString() });
+            originalError.apply(console, args);
+        };
+
+        console.warn = function(...args) {
+            errorLog.push({ type: 'WARN', msg: args.join(' '), time: new Date().toLocaleTimeString() });
+            originalWarn.apply(console, args);
+        };
+
+        function addTest(section, icon, label, value, status = 'info') {
+            const el = document.getElementById(section);
+            if (!el) return;
+            
+            const div = document.createElement('div');
+            div.className = `test ${status}`;
+            div.innerHTML = `
+                <div class="icon">${icon}</div>
+                <div class="content">
+                    <div class="label">${label}</div>
+                    <div class="value">${value}</div>
+                </div>
+            `;
+            el.appendChild(div);
+        }
+
+        function runFullDiagnostics() {
+            // Limpiar
+            document.getElementById('scripts-section').innerHTML = '';
+            document.getElementById('config-section').innerHTML = '';
+            document.getElementById('modules-section').innerHTML = '';
+            document.getElementById('firebase-section').innerHTML = '';
+            document.getElementById('connectivity-section').innerHTML = '';
+
+            // 1. Scripts
+            addTest('scripts-section', 
+                window.firebase ? '✅' : '❌',
+                'Firebase SDK',
+                window.firebase ? 'Cargado' : 'No disponible',
+                window.firebase ? 'success' : 'error'
+            );
+
+            addTest('scripts-section',
+                window.auth ? '✅' : '❌',
+                'Firebase Auth',
+                window.auth ? 'Inicializado' : 'No disponible',
+                window.auth ? 'success' : 'error'
+            );
+
+            addTest('scripts-section',
+                window.db ? '✅' : '❌',
+                'Firebase Firestore',
+                window.db ? 'Inicializado' : 'No disponible',
+                window.db ? 'success' : 'error'
+            );
+
+            // 2. Config
+            const cfg = window.PAYMENTS_CONFIG || {};
+            
+            addTest('config-section',
+                cfg.paypalClientId ? '✅' : '❌',
+                'PayPal Client ID',
+                cfg.paypalClientId ? `${cfg.paypalClientId.substring(0, 30)}...` : 'No configurado',
+                cfg.paypalClientId ? 'success' : 'error'
+            );
+
+            addTest('config-section',
+                cfg.paypalEnv ? '✅' : '❌',
+                'PayPal Environment',
+                cfg.paypalEnv || 'No configurado',
+                cfg.paypalEnv === 'sandbox' ? 'info' : cfg.paypalEnv === 'production' ? 'warning' : 'error'
+            );
+
+            addTest('config-section',
+                cfg.paypalFxRate ? '✅' : '❌',
+                'FX Rate (CRC -> USD)',
+                cfg.paypalFxRate || 'No configurado',
+                cfg.paypalFxRate ? 'success' : 'error'
+            );
+
+            // 3. Módulos
+            addTest('modules-section',
+                window.PayPal ? '✅' : '❌',
+                'PayPal Module',
+                window.PayPal ? 'Cargado' : 'No disponible',
+                window.PayPal ? 'success' : 'error'
+            );
+
+            addTest('modules-section',
+                typeof paypal !== 'undefined' ? '✅' : '❌',
+                'PayPal SDK Global',
+                typeof paypal !== 'undefined' ? 'Disponible' : 'No cargado aún (carga dinámica)',
+                typeof paypal !== 'undefined' ? 'success' : 'warning'
+            );
+
+            addTest('modules-section',
+                window.checkout ? '✅' : '❌',
+                'Checkout System',
+                window.checkout ? 'Cargado' : 'No disponible',
+                window.checkout ? 'success' : 'error'
+            );
+
+            // 4. Firebase
+            if (window.auth) {
+                const user = window.auth.currentUser;
+                addTest('firebase-section',
+                    user ? '✅' : 'ℹ️',
+                    'Usuario Autenticado',
+                    user ? `${user.email || user.uid}` : 'No autenticado (opcional)',
+                    user ? 'success' : 'info'
+                );
+            }
+
+            if (window.db) {
+                addTest('firebase-section',
+                    '✅',
+                    'Firestore Disponible',
+                    'Listo para guardar pedidos',
+                    'success'
+                );
+            }
+
+            // 5. Conectividad
+            addTest('connectivity-section',
+                navigator.onLine ? '✅' : '❌',
+                'Conexión a Internet',
+                navigator.onLine ? 'Conectado' : 'Sin conexión',
+                navigator.onLine ? 'success' : 'error'
+            );
+
+            // PayPal connectivity (CORS)
+            const corsTest = fetch('https://www.paypal.com/sdk/js?client-id=test', { mode: 'no-cors' })
+                .then(() => {
+                    addTest('connectivity-section',
+                        '✅',
+                        'PayPal API Alcanzable',
+                        'No hay bloqueo CORS',
+                        'success'
+                    );
+                })
+                .catch(err => {
+                    addTest('connectivity-section',
+                        '⚠️',
+                        'PayPal API Conectividad',
+                        `Posible bloqueo: ${err.message}`,
+                        'warning'
+                    );
+                });
+
+            // 6. Errores de Consola
+            setTimeout(() => {
+                const errContainer = document.getElementById('error-log');
+                if (errorLog.length > 0) {
+                    errContainer.innerHTML = `
+                        <strong>Errores capturados (${errorLog.length}):</strong><br><br>
+                        ${errorLog.map(e => `[${e.time}] <strong>${e.type}</strong>: ${e.msg}`).join('<br>')}
+                    `;
+                } else {
+                    errContainer.innerHTML = '<strong style="color: #27ae60;">✅ Sin errores en consola</strong>';
+                    errContainer.style.background = '#f1f8f4';
+                    errContainer.style.borderColor = '#27ae60';
+                }
+            }, 100);
+
+            console.log('✅ Diagnóstico completado');
+        }
+
+        async function testPayPalSDK() {
+            console.log('🧪 Iniciando test de carga de PayPal SDK...');
+            
+            if (!window.PayPal) {
+                addTest('modules-section', '❌', 'Test SDK', 'PayPal no está disponible', 'error');
+                return;
+            }
+
+            try {
+                const result = await window.PayPal.init();
+                addTest('modules-section',
+                    result ? '✅' : '❌',
+                    'Test SDK - Resultado',
+                    result ? 'SDK cargado correctamente' : 'Falló la carga del SDK',
+                    result ? 'success' : 'error'
+                );
+
+                if (result) {
+                    addTest('modules-section',
+                        typeof paypal !== 'undefined' ? '✅' : '⚠️',
+                        'PayPal Global',
+                        typeof paypal !== 'undefined' ? 'window.paypal está disponible' : 'window.paypal aún no disponible',
+                        typeof paypal !== 'undefined' ? 'success' : 'warning'
+                    );
+                }
+            } catch (err) {
+                addTest('modules-section', '❌', 'Test SDK - Error', err.message, 'error');
+            }
+        }
+
+        // Ejecutar al cargar
+        window.addEventListener('load', () => {
+            runFullDiagnostics();
+        });
+    </script>
+
+    <!-- Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <script src="js/firebase-config.js"></script>
+    <script src="js/paypal-simple.js"></script>
+    <script src="js/checkout.js"></script>
+</body>
+</html>

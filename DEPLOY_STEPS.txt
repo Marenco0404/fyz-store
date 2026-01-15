@@ -1,0 +1,69 @@
+## 🚀 PASOS PARA SUBIR A PRODUCCIÓN
+
+### 1. Instalar Node.js (si no lo tienes)
+   - Descargá: https://nodejs.org
+   - Instalá versión 18 o superior
+
+### 2. Instalar Firebase CLI
+```powershell
+npm install -g firebase-tools
+```
+
+### 3. Desde la carpeta raíz del proyecto:
+```powershell
+cd "c:\Users\pablo\Downloads\fyz_checkout_integrado_abajo"
+```
+
+### 4. Instalar dependencias de Functions
+```powershell
+cd functions
+npm install
+cd ..
+```
+
+### 5. Autenticarse con Firebase
+```powershell
+firebase login
+```
+(Se abre un navegador para que inicies sesión con tu cuenta de Google)
+
+### 6. Desplegar Functions con Stripe configurado
+```powershell
+firebase functions:config:set stripe.secret="TU_STRIPE_SECRET_KEY"
+```
+
+### 7. Desplegar todo (Functions + Hosting)
+```powershell
+firebase deploy
+```
+
+### ✅ Listo!
+Firebase te dará una URL tipo:
+```
+https://fyzperfumeria.web.app
+```
+
+Accedé a esa URL y probá el checkout.
+
+---
+
+## 🔧 Resolución de problemas
+
+**P: ¿Cómo pruebo un pago?**
+R: Usá la tarjeta de prueba Stripe: `4242 4242 4242 4242` con cualquier fecha futura y CVC (ej: 123)
+
+**P: ¿Cómo veo los logs?**
+R: 
+```powershell
+firebase functions:log
+```
+
+**P: ¿Cómo cambio la clave de Stripe?**
+R:
+```powershell
+firebase functions:config:set stripe.secret="sk_test_NEW_KEY"
+firebase deploy --only functions
+```
+
+**P: ¿Cómo actualizo el código de las pages (HTML)?**
+R: El `firebase deploy` actualiza tanto Functions como el hosting automáticamente

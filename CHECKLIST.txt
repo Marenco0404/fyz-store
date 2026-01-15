@@ -1,0 +1,111 @@
+╔══════════════════════════════════════════════════════════════════╗
+║                  CHECKLIST DESPLIEGUE A PRODUCCIÓN               ║
+║                                                                  ║
+║              F&Z Store - Checkout Integrado                     ║
+╚══════════════════════════════════════════════════════════════════╝
+
+📋 ANTES DE DESPLEGAR
+
+  [ ] Node.js 18+ instalado
+      → Verificar: node --version
+  
+  [ ] Firebase CLI instalado
+      → Verificar: firebase --version
+  
+  [ ] Autenticado con Firebase
+      → Ejecutar: firebase login
+  
+  [ ] Claves de Stripe generadas
+      → pk_test_... (pública)
+      → sk_test_... (secreta)
+  
+  [ ] PayPal Client ID generado
+      → Configurado en js/firebase-config.js
+  
+  [ ] Firestore Database creado
+      → En Firebase Console: Firestore Database
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🚀 PASOS DE DESPLIEGUE
+
+PASO 1️⃣  - Instalar dependencias
+  [ ] cd functions
+  [ ] npm install
+  [ ] cd ..
+
+PASO 2️⃣  - Configurar Stripe Secret Key
+  [ ] Copiar sk_test_... desde Stripe Dashboard
+  [ ] Ejecutar:
+      firebase functions:config:set stripe.secret="sk_test_..."
+  [ ] Reemplazar con tu clave real
+
+PASO 3️⃣  - Desplegar a Firebase
+  [ ] firebase deploy
+  [ ] Esperar a que termine (~2-3 minutos)
+
+PASO 4️⃣  - Verificar despliegue
+  [ ] Abrir URL mostrada: https://fyzperfumeria.web.app
+  [ ] Verificar que página cargue
+  [ ] Revisar consola (F12) por errores
+
+PASO 5️⃣  - Testear checkout
+  [ ] Agregar producto al carrito
+  [ ] Ir a finalizarcompra.html
+  [ ] Llenar datos de envío
+  [ ] Seleccionar "Tarjeta de Crédito"
+  [ ] Usar tarjeta de prueba: 4242 4242 4242 4242
+  [ ] Verificar que pago funcione
+  [ ] Confirmar pedido en Firestore
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔍 VERIFICACIÓN DE FUNCIONES
+
+Functions desplegadas:
+  [ ] Ver: https://console.firebase.google.com/u/0/project/fyzperfumeria/functions
+  [ ] Debe mostrar "createPaymentIntent" como activa
+
+CORS funcionando:
+  [ ] Abrir DevTools (F12)
+  [ ] Intentar pago
+  [ ] No debe haber error de CORS
+
+Stripe conectado:
+  [ ] Console muestra: "🔗 URL de función: https://..."
+  [ ] Console muestra: "📡 Response status: 200"
+  [ ] Console muestra: "📋 Response data: { clientSecret: ... }"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️ SI ALGO FALLA
+
+[ ] Revisar logs:
+    firebase functions:log
+
+[ ] Verificar configuración:
+    firebase functions:config:get
+
+[ ] Asegurar que:
+    - Stripe secret está configurado
+    - Functions están desplegadas
+    - CORS no bloquea requests
+    - Firestore está operativo
+
+[ ] En Firefox/Chrome DevTools:
+    - Console: Buscar ❌ o errores rojos
+    - Network: Ver respuesta de createPaymentIntent
+    - Application: Verificar localStorage
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📞 CONTACTO
+
+URL en vivo: https://fyzperfumeria.web.app
+Firebase Console: https://console.firebase.google.com/u/0/project/fyzperfumeria
+Stripe Dashboard: https://dashboard.stripe.com/test/dashboard
+PayPal Business: https://www.paypal.com/myaccount/businessprofile/
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ CHECKLIST COMPLETO - ¡LISTO PARA PRODUCCIÓN!
