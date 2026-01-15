@@ -478,11 +478,11 @@
       return new Promise((resolve) => {
         console.log("📥 Cargando PayPal SDK...");
         
-        // Timeout de 15 segundos para cargar el SDK
+        // Timeout de 20 segundos para cargar el SDK
         const timeoutId = setTimeout(() => {
-          console.warn("⚠️ Timeout cargando PayPal SDK (15s)");
+          console.warn("⚠️ Timeout cargando PayPal SDK (20s). Verifica AdBlock o conexión.");
           resolve(false);
-        }, 15000);
+        }, 20000);
 
         const s = document.createElement("script");
         const base = "https://www.paypal.com/sdk/js";
@@ -511,8 +511,18 @@
         s.onerror = (err) => {
           clearTimeout(timeoutId);
           console.error("❌ Error cargando PayPal SDK:", err);
+          console.warn("💡 Soluciones: 1) Desactiva AdBlock, 2) Recarga la página, 3) Usa otro navegador");
           resolve(false);
         };
+        
+        // Fallback si no dispara onload ni onerror (problema de conexión/bloqueador)
+        setTimeout(() => {
+          if (!this.paypalSdkLoaded) {
+            clearTimeout(timeoutId);
+            console.warn("⚠️ PayPal SDK no se cargó. Probablemente AdBlock u otro bloqueador.");
+            resolve(false);
+          }
+        }, 25000);
         
         document.head.appendChild(s);
       });
