@@ -229,7 +229,23 @@
               const order = await actions.order.capture();
               log("success", "Orden capturada:", order.id);
               
-              // Guardar en Firestore
+              // Preparar datos del pedido
+              const pedidoData = {
+                id: order.id,
+                totalCRC,
+                totalUSD,
+                items,
+                shipping: JSON.parse(localStorage.getItem("fyz_checkout_shipping") || "{}"),
+                metodo: "paypal",
+                estado: "completado",
+                fecha: new Date().toISOString()
+              };
+
+              // Guardar en localStorage PRIMERO (para confirmacion.html)
+              localStorage.setItem("fyz_confirmacion_pago", JSON.stringify(pedidoData));
+              localStorage.setItem(`fyz_pedido_${order.id}`, JSON.stringify(pedidoData));
+
+              // Intentar guardar en Firestore (si está disponible)
               await this.savePedido({
                 orderId: order.id,
                 totalCRC,

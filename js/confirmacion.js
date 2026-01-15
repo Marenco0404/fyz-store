@@ -195,55 +195,39 @@
     const localData = getLocalConfirmData();
     const id = getOrderIdFromUrlOrStorage();
 
-    if (!id) {
-      if (localData && (localData.totalCRC || localData.total || (localData.items && localData.items.length))) {
-        renderPedido(null, localData, "");
-        attachPrintListener();
-        attachTrackListener();
-        return;
-      }
-      showNotFound();
+    console.log("🔍 Buscando pedido:", { id, localDataKeys: Object.keys(localData) });
+
+    // Prioridad 1: localStorage (siempre tiene los datos más frescos después de PayPal)
+    if (localData && (localData.totalCRC || localData.total || (localData.items && Array.isArray(localData.items) && localData.items.length > 0))) {
+      console.log("✅ Usando datos de localStorage");
+      renderPedido(null, localData, id || localData.id || "");
+      attachPrintListener();
+      attachTrackListener();
       return;
     }
 
-    if (!window.db) {
-      if (localData && (localData.totalCRC || localData.total || (localData.items && localData.items.length))) {
-        renderPedido(null, localData, id);
-        attachPrintListener();
-        attachTrackListener();
-        return;
-      }
-      showNotFound();
-      return;
-    }
-
-    try {
-      const doc = await db.collection("pedidos").doc(id).get();
-      if (!doc.exists) {
-        if (localData && (localData.totalCRC || localData.total || (localData.items && localData.items.length))) {
-          renderPedido(null, localData, id);
+    // Prioridad 2: Si tenemos ID, intenta Firestore
+    if (id && window.db) {
+      try {
+        console.log("🔍 Buscando en Firestore con ID:", id);
+        const doc = await window.db.collection("pedidos").doc(id).get();
+        if (doc.exists) {
+          console.log("✅ Pedido encontrado en Firestore");
+          const pedido = { id: doc.id, ...doc.data() };
+          renderPedido(pedido, localData, id);
+          localStorage.setItem("fyz_last_pedido_id", id);
           attachPrintListener();
           attachTrackListener();
           return;
         }
-        showNotFound();
-        return;
+      } catch (e) {
+        console.warn("⚠️ Error accediendo Firestore:", e);
       }
-      const pedido = { id: doc.id, ...doc.data() };
-      renderPedido(pedido, localData, id);
-      localStorage.setItem("fyz_last_pedido_id", id);
-      attachPrintListener();
-      attachTrackListener();
-    } catch (e) {
-      console.error("❌ Error cargando pedido:", e);
-      if (localData && (localData.totalCRC || localData.total || (localData.items && localData.items.length))) {
-        renderPedido(null, localData, id);
-        attachPrintListener();
-        attachTrackListener();
-        return;
-      }
-      showNotFound();
     }
+
+    // Prioridad 3: Mostrar error si nada funciona
+    console.error("❌ No se encontró pedido");
+    showNotFound();
   }
 
   // Agregar listeners de botones
