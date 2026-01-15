@@ -453,9 +453,6 @@
 
           // si vuelven a PayPal, re-render si hace falta
           if (method === "paypal") await this._initPaypal(false);
-          
-          // si seleccionan 2Checkout, inicializar
-          if (method === "2checkout") await this._init2Checkout();
         });
       });
     },
@@ -523,131 +520,7 @@
       if (box) box.style.display = "none";
     },
 
-    async _init2Checkout() {
-      const container = document.getElementById("2checkout-button-container");
-      
-      if (!container) {
-        console.log("❌ 2Checkout container not found");
-        return;
-      }
 
-      const cfg = window.PAYMENTS_CONFIG || {};
-      const merchantCode = cfg.twoCheckoutMerchantCode;
-      const publicKey = cfg.twoCheckoutPublicKey;
-
-      if (!merchantCode || !publicKey) {
-        console.warn("⚠️ 2Checkout keys missing in PAYMENTS_CONFIG");
-        container.innerHTML = `<div style="color:#e74c3c; padding:1rem; background: rgba(231, 76, 60, 0.1); border-radius: 6px; border-left: 4px solid #e74c3c; font-size: 0.9rem;"><strong>⚠️ No configurado</strong><br><small>2Checkout no está configurado en esta tienda.</small></div>`;
-        return;
-      }
-
-      const { total } = this._calcularTotales();
-      if (total <= 0) {
-        container.innerHTML = `<div style="padding:10px; color: var(--color-text-light); font-size: 0.9rem;">Agregá productos al carrito</div>`;
-        return;
-      }
-
-      try {
-        // Crear botón de pago que abre 2Checkout
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "btn-pay btn-2checkout";
-        btn.innerHTML = `<i class="fas fa-credit-card"></i> Pagar ${formatCRC(total)}`;
-        btn.onclick = (e) => this._handle2CheckoutPayment(e);
-        
-        // Limpiar contenedor y agregar botón
-        container.innerHTML = "";
-        container.appendChild(btn);
-        
-        console.log("✅ 2Checkout iniciado correctamente");
-      } catch (error) {
-        console.error("Error iniciando 2Checkout:", error);
-        container.innerHTML = `<div style="color:#e74c3c; padding:1rem; background: rgba(231, 76, 60, 0.1); border-radius: 6px; border-left: 4px solid #e74c3c; font-size: 0.9rem;"><strong>❌ Error</strong><br><small>${error.message}</small></div>`;
-      }
-    },
-
-
-
-    async _handle2CheckoutPayment(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      const { total, items } = this._calcularTotales();
-      
-      console.log("🔍 Iniciando pago con 2Checkout");
-      console.log("   - Monto:", total);
-      console.log("   - Merchant:", window.PAYMENTS_CONFIG?.twoCheckoutMerchantCode);
-      
-      if (!this._validateFormData()) {
-        this._showCheckoutError("❌ Por favor completa la información de envío");
-        return;
-      }
-      
-      // Obtener datos del usuario
-      const userEmail = document.getElementById("email-input")?.value || "no-email@test.com";
-      const userName = document.getElementById("nombre-input")?.value || "Guest";
-      const userPhone = document.getElementById("phone-input")?.value || "";
-      
-      // Preparar parámetros para 2Checkout
-      const params = new URLSearchParams({
-        sid: window.PAYMENTS_CONFIG.twoCheckoutMerchantCode,
-        return_url: window.location.origin + "/confirmacion.html",
-        cancel_url: window.location.href,
-        email: userEmail,
-        first_name: userName.split(" ")[0],
-        last_name: userName.split(" ")[1] || "",
-        currency_code: "CRC",
-        amount: (total / 100).toFixed(2),
-        item_id: "fyz-order",
-        item_name: "F&Z Store Order"
-      });
-      
-      // Agregar items del carrito
-      items.forEach((item, index) => {
-        params.append(`item_name_${index + 1}`, item.nombre);
-        params.append(`item_price_${index + 1}`, (item.precio / 100).toFixed(2));
-        params.append(`item_qty_${index + 1}`, item.cantidad);
-      });
-      
-      // Redirigir a 2Checkout
-      const checkoutUrl = `https://www.2checkout.com/checkout/purchase?${params.toString()}`;
-      console.log("🔗 Rediriendo a 2Checkout:", checkoutUrl);
-      
-      // Guardar pedido en Firebase antes de redirigir
-      try {
-        await this._savePendingOrder(userEmail, userName, userPhone, total, items);
-        console.log("✅ Pedido guardado");
-        window.location.href = checkoutUrl;
-      } catch (error) {
-        console.error("❌ Error guardando pedido:", error);
-        this._showCheckoutError("Error al procesar el pedido. Intenta de nuevo.");
-      }
-    },
-
-    async _savePendingOrder(email, nombre, phone, total, items) {
-      try {
-        const { db, auth } = window.firebaseConfig;
-        if (!db || !auth.currentUser?.email) {
-          console.warn("⚠️ No hay usuario autenticado");
-          return;
-        }
-        
-        // Guardar orden pendiente de pago
-        await window.firebaseConfig.db.collection("pedidos").add({
-          usuario_email: auth.currentUser.email,
-          nombre: nombre,
-          telefono: phone,
-          total: total,
-          items: items,
-          estado: "pendiente_2checkout",
-          fecha: new Date(),
-          metodo_pago: "2checkout"
-        });
-      } catch (error) {
-        console.error("Error saving order:", error);
-        throw error;
-      }
-    },
 
 
 

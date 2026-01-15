@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' https: https://www.2checkout.com https://www.paypal.com; connect-src 'self' https:; font-src 'self' https: data:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; frame-src https://www.paypal.com https://www.2checkout.com;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' https: https://www.paypal.com; connect-src 'self' https:; font-src 'self' https: data:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; frame-src https://www.paypal.com;">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()">
 <title>Finalizar Compra - F&Z Store</title>
@@ -18,7 +18,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- PayPal SDK (cargado dinámicamente en checkout.js) -->
-    <!-- 2Checkout SDK (cargado dinámicamente en checkout.js) -->
 </head>
 <body>
     <!-- Header -->
@@ -210,49 +209,6 @@
                                     <div class="paypal-info">
                                         <p>Serás redirigido a PayPal para completar tu pago de forma segura.</p>
                                         <div id="paypal-button-container"></div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="payment-method" data-method="2checkout">
-                                <div class="method-header">
-                                    <div class="method-radio">
-                                        <input type="radio" name="payment-method" id="2checkout-method">
-                                    </div>
-                                    <div class="method-info">
-                                        <div class="method-icon">
-                                            <i class="fas fa-credit-card"></i>
-                                        </div>
-                                        <div class="method-details">
-                                            <h3 class="method-name">2Checkout</h3>
-                                            <p class="method-description">Pago seguro con múltiples opciones</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="method-content" id="2checkout-content">
-                                    <div class="payment-info">
-                                        <p>Paga de forma segura con 2Checkout - Opciones de pago flexibles para Costa Rica</p>
-                                        <form id="payment-method-form">
-                                            <div class="form-group">
-                                                <label for="cardNumber">Número de Tarjeta</label>
-                                                <input type="text" id="cardNumber" name="cardNumber" placeholder="0000 0000 0000 0000" maxlength="19">
-                                            </div>
-                                            <div class="form-row">
-                                                <div class="form-group">
-                                                    <label for="expMonth">Mes</label>
-                                                    <input type="text" id="expMonth" name="expMonth" placeholder="MM" maxlength="2">
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="expYear">Año</label>
-                                                    <input type="text" id="expYear" name="expYear" placeholder="YY" maxlength="2">
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="cvv">CVV</label>
-                                                    <input type="text" id="cvv" name="cvv" placeholder="000" maxlength="4">
-                                                </div>
-                                            </div>
-                                            <div id="2checkout-button-container"></div>
-                                        </form>
                                     </div>
                                 </div>
                             </div>
