@@ -477,6 +477,13 @@
 
       return new Promise((resolve) => {
         console.log("📥 Cargando PayPal SDK...");
+        
+        // Timeout de 15 segundos para cargar el SDK
+        const timeoutId = setTimeout(() => {
+          console.warn("⚠️ Timeout cargando PayPal SDK (15s)");
+          resolve(false);
+        }, 15000);
+
         const s = document.createElement("script");
         const base = "https://www.paypal.com/sdk/js";
         const params = new URLSearchParams({
@@ -485,22 +492,28 @@
           intent: "capture",
           components: "buttons",
           locale: "es_ES",
-          "disable-funding": "paylater"
+          "disable-funding": "paylater",
+          "merchant-id": cfg.paypalMerchantId || ""
         });
         if (env === "sandbox") {
           params.set("debug", "true");
         }
         s.src = `${base}?${params.toString()}`;
         s.async = true;
+        s.defer = true;
+        
         s.onload = () => {
+          clearTimeout(timeoutId);
           this.paypalSdkLoaded = true;
           console.log("✅ PayPal SDK cargado correctamente");
           resolve(true);
         };
         s.onerror = (err) => {
+          clearTimeout(timeoutId);
           console.error("❌ Error cargando PayPal SDK:", err);
           resolve(false);
         };
+        
         document.head.appendChild(s);
       });
     },
@@ -549,12 +562,14 @@
       const container = document.getElementById("paypal-button-container");
       if (!container) return;
 
-      // Mostrar estado de carga
-      container.innerHTML = `<div style="padding: 1.5rem; text-align: center; color: var(--color-text-light); background: rgba(52, 152, 219, 0.05); border-radius: 8px; border: 1px solid rgba(52, 152, 219, 0.2);"><i class="fas fa-spinner fa-spin"></i> Cargando PayPal...</div>`;
+      // Mostrar estado de carga solo si es la primera vez
+      if (!this.paypalRendered) {
+        container.innerHTML = `<div style="padding: 1.5rem; text-align: center; color: var(--color-text-light); background: rgba(52, 152, 219, 0.05); border-radius: 8px; border: 1px solid rgba(52, 152, 219, 0.2);"><i class="fas fa-spinner fa-spin"></i> Cargando PayPal...</div>`;
+      }
 
       const ok = await this._loadPayPalSdk();
       if (!ok || typeof paypal === "undefined") {
-        container.innerHTML = `<div style="color:#e74c3c; padding:1.5rem; background: rgba(231, 76, 60, 0.1); border-radius: 8px; border-left: 4px solid #e74c3c; font-size: 0.95rem;"><strong>⚠️ No se pudo cargar PayPal</strong><br><small style="display: block; margin-top: 0.5rem;">Soluciones: Desactivá AdBlock, probá en modo incógnito o recargá la página.</small></div>`;
+        container.innerHTML = `<div style="color:#e74c3c; padding:1.5rem; background: rgba(231, 76, 60, 0.1); border-radius: 8px; border-left: 4px solid #e74c3c; font-size: 0.95rem;"><strong>⚠️ No se pudo cargar PayPal</strong><br><small style="display: block; margin-top: 0.5rem;">Intenta: Desactiva AdBlock, modo incógnito o recarga la página.</small></div>`;
         return;
       }
 
@@ -582,6 +597,9 @@
             height: 48,
             label: "pay"
           },
+          onInit: (data, actions) => {
+            console.log("✅ PayPal botón inicializado");
+          },
 
           createOrder: async (data, actions) => {
             this._clearCheckoutError();
@@ -598,7 +616,9 @@
               throw new Error("Total USD inválido");
             }
 
-            console.log("📦 PayPal creating order for USD:", usd);
+            console.log("📦 Creando orden PayPal por USD:", usd);
+            this._showCheckoutError("⏳ Preparando orden en PayPal...", "info");
+            
             return actions.order.create({
               intent: "CAPTURE",
               purchase_units: [{
@@ -614,7 +634,7 @@
           onApprove: async (data, actions) => {
             try {
               console.log("✅ PayPal aprobado, procesando pago...");
-              this._showCheckoutError("⏳ Procesando tu pago...", "info");
+              this._showCheckoutError("⏳ Completando tu pago...", "info");
               const details = await actions.order.capture();
               
               // Captura real suele venir en purchase_units[0].payments.captures[0].id
@@ -626,10 +646,10 @@
                 uidLike();
 
               const status = String(details?.status || "").toUpperCase();
-              console.log("📋 PayPal order status:", status);
+              console.log("📋 Estado de orden PayPal:", status);
               
               if (status && status !== "COMPLETED") {
-                throw new Error("PayPal status: " + status);
+                throw new Error("Estado: " + status);
               }
 
               const pedidoId = await this._postPago({
@@ -648,7 +668,7 @@
                   : "confirmacion.html";
               }, 1500);
             } catch (err) {
-              console.error("❌ Error en captura PayPal:", err);
+              console.error("❌ Error procesando PayPal:", err);
               const msg = (err && (err.message || err.toString())) ? String(err.message || err.toString()) : "error desconocido";
               this._showCheckoutError(
                 `<strong>⚠️ No se pudo procesar el pago</strong><br><small style="display: block; margin-top: 0.5rem;">Error: ${msg}</small><br><small style="display: block; margin-top: 1rem;">Intenta de nuevo o probá:<br>• Sin AdBlock<br>• Modo incógnito<br>• Con saldo en PayPal</small>`
@@ -659,7 +679,7 @@
           onError: (err) => {
             console.error("❌ Error PayPal:", err);
             this._showCheckoutError(
-              `<strong>⚠️ Ocurrió un error con PayPal</strong><br><small style="display: block; margin-top: 0.5rem;">Intenta:<br>• Desactivar AdBlock<br>• Abrir en modo incógnito<br>• Actualizar la página<br><br>Si el problema persiste, abre la consola (F12) para más detalles.</small>`
+              `<strong>⚠️ Error con PayPal</strong><br><small style="display: block; margin-top: 0.5rem;">Soluciones:<br>• Desactiva AdBlock<br>• Abre en modo incógnito<br>• Actualiza la página<br>• Prueba con otra tarjeta</small>`
             );
           },
 
