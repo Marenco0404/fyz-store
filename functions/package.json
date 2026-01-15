@@ -1,6 +1,7 @@
 {
   "name": "functions",
   "description": "Firebase Cloud Functions for F&Z Store payments (Stripe)",
+  "type": "module",
   "main": "index.js",
   "engines": {
     "node": "18"
