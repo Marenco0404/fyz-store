@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simular Checkout - Debug</title>
+    <style>
+        * { margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
+            padding: 20px;
+            background: #f5f5f5;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid #ddd;
+        }
+        .panel h2 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #464647;
+        }
+        .error { color: #f48771; }
+        .success { color: #89d185; }
+        .warning { color: #dcdcaa; }
+        .info { color: #9cdcfe; }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            background: #f0f0f0;
+        }
+        .status.ok { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.warning { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Simulador de Checkout - Debug</h1>
+    
+    <div class="container">
+        <div class="panel">
+            <h2>📋 Estado del Sistema</h2>
+            <div id="status"></div>
+            <button onclick="runFullTest()">Ejecutar Test Completo</button>
+            <button onclick="clearLog()">Limpiar Log</button>
+        </div>
+
+        <div class="panel">
+            <h2>📊 Log de Consola</h2>
+            <div class="log" id="log"></div>
+        </div>
+    </div>
+
+    <!-- Mismo orden que en finalizarcompra.html -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <script src="js/helpers.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/carrito.js"></script>
+    <script src="js/paypal-module.js"></script>
+    <script src="js/checkout.js"></script>
+    <script src="js/verificador-paypal.js"></script>
+
+    <script>
+        const logEl = document.getElementById('log');
+        const statusEl = document.getElementById('status');
+
+        // Interceptar console
+        const logs = [];
+        const originalLog = console.log;
+        const originalError = console.error;
+
+        console.log = function(...args) {
+            const msg = args.join(' ');
+            logs.push({ type: 'log', msg, time: new Date().toLocaleTimeString() });
+            renderLog();
+            originalLog.apply(console, args);
+        };
+
+        console.error = function(...args) {
+            const msg = args.join(' ');
+            logs.push({ type: 'error', msg, time: new Date().toLocaleTimeString() });
+            renderLog();
+            originalError.apply(console, args);
+        };
+
+        function renderLog() {
+            logEl.innerHTML = logs.map(l => {
+                const color = l.type === 'error' ? '#f48771' : l.msg.includes('✅') ? '#89d185' : l.msg.includes('❌') ? '#f48771' : '#9cdcfe';
+                return `<div style="color: ${color};">[${l.time}] ${l.msg}</div>`;
+            }).join('');
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function clearLog() {
+            logs.length = 0;
+            logEl.innerHTML = '';
+        }
+
+        function updateStatus() {
+            const checks = {
+                firebase: typeof firebase !== 'undefined',
+                auth: typeof window.auth !== 'undefined',
+                db: typeof window.db !== 'undefined',
+                config: typeof window.PAYMENTS_CONFIG !== 'undefined' && window.PAYMENTS_CONFIG.paypalClientId,
+                module: typeof window.PayPalModule !== 'undefined',
+                checkout: typeof window.checkout !== 'undefined',
+                paypal: typeof window.paypal !== 'undefined'
+            };
+
+            let html = '<div style="display: grid; gap: 8px;">';
+            
+            Object.entries(checks).forEach(([key, ok]) => {
+                const icon = ok ? '✅' : '❌';
+                const status = ok ? 'ok' : 'error';
+                html += `<div class="status ${status}">${icon} ${key}</div>`;
+            });
+
+            html += '</div>';
+            statusEl.innerHTML = html;
+        }
+
+        async function runFullTest() {
+            clearLog();
+            console.log('🚀 === INICIANDO TEST COMPLETO ===');
+            
+            updateStatus();
+
+            // Test 1: Verificar config
+            console.log('1️⃣ Verificando PAYMENTS_CONFIG...');
+            if (window.PAYMENTS_CONFIG && window.PAYMENTS_CONFIG.paypalClientId) {
+                console.log('✅ PAYMENTS_CONFIG disponible');
+                console.log(`   ClientID: ${window.PAYMENTS_CONFIG.paypalClientId.substring(0, 20)}...`);
+                console.log(`   Env: ${window.PAYMENTS_CONFIG.paypalEnv}`);
+            } else {
+                console.error('❌ PAYMENTS_CONFIG no disponible');
+            }
+
+            // Test 2: Verificar módulo
+            console.log('2️⃣ Verificando PayPalModule...');
+            if (window.PayPalModule) {
+                console.log('✅ PayPalModule disponible');
+                console.log('   Llamando a init()...');
+                
+                try {
+                    const result = await window.PayPalModule.init();
+                    if (result) {
+                        console.log('✅ init() completado exitosamente');
+                    } else {
+                        console.log('⚠️ init() retornó false');
+                    }
+                } catch (err) {
+                    console.error(`❌ Error en init(): ${err.message}`);
+                }
+            } else {
+                console.error('❌ PayPalModule no disponible');
+            }
+
+            // Test 3: Verificar SDK
+            console.log('3️⃣ Verificando PayPal SDK global...');
+            if (typeof window.paypal !== 'undefined') {
+                console.log('✅ window.paypal está disponible');
+                console.log(`   Buttons: ${typeof window.paypal.Buttons}`);
+                console.log(`   FUNDING: ${typeof window.paypal.FUNDING}`);
+            } else {
+                console.log('⚠️ window.paypal no está disponible aún (cargará dinámicamente)');
+            }
+
+            // Test 4: Verificar carrito
+            console.log('4️⃣ Verificando carrito...');
+            if (typeof CheckoutDebug !== 'undefined') {
+                const carrito = CheckoutDebug.carrito();
+                const totales = CheckoutDebug.totales();
+                console.log(`✅ Carrito: ${carrito.length} productos`);
+                console.log(`   Total: ₡${totales.total} (≈$${(totales.total / 520).toFixed(2)})`);
+            } else {
+                console.log('⚠️ CheckoutDebug no disponible');
+            }
+
+            // Test 5: Verificar Firebase
+            console.log('5️⃣ Verificando Firebase...');
+            if (window.auth) {
+                const user = window.auth.currentUser;
+                console.log(`✅ Firebase Auth inicializado`);
+                console.log(`   Usuario: ${user ? user.email : 'No autenticado'}`);
+            } else {
+                console.error('❌ Firebase Auth no disponible');
+            }
+
+            if (window.db) {
+                console.log('✅ Firebase Firestore inicializado');
+            }
+
+            updateStatus();
+            console.log('✅ === TEST COMPLETADO ===');
+        }
+
+        // Ejecutar test al cargar
+        window.addEventListener('load', () => {
+            console.log('📄 Página cargada');
+            console.log('Ejecuta: runFullTest()');
+            updateStatus();
+        });
+    </script>
+</body>
+</html>
