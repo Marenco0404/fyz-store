@@ -140,7 +140,7 @@
                 auth: typeof window.auth !== 'undefined',
                 db: typeof window.db !== 'undefined',
                 config: typeof window.PAYMENTS_CONFIG !== 'undefined' && window.PAYMENTS_CONFIG.paypalClientId,
-                module: typeof window.PayPalModule !== 'undefined',
+                module: typeof window.PayPal !== 'undefined',
                 checkout: typeof window.checkout !== 'undefined',
                 paypal: typeof window.paypal !== 'undefined'
             };
@@ -175,12 +175,12 @@
 
             // Test 2: Verificar módulo
             console.log('2️⃣ Verificando PayPalModule...');
-            if (window.PayPalModule) {
-                console.log('✅ PayPalModule disponible');
+            if (window.PayPal) {
+                console.log('✅ PayPal disponible');
                 console.log('   Llamando a init()...');
                 
                 try {
-                    const result = await window.PayPalModule.init();
+                    const result = await window.PayPal.init();
                     if (result) {
                         console.log('✅ init() completado exitosamente');
                     } else {

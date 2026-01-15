@@ -228,10 +228,10 @@
 
             // 3. Módulos
             addTest('modules-section',
-                window.PayPalModule ? '✅' : '❌',
+                window.PayPal ? '✅' : '❌',
                 'PayPal Module',
-                window.PayPalModule ? 'Cargado' : 'No disponible',
-                window.PayPalModule ? 'success' : 'error'
+                window.PayPal ? 'Cargado' : 'No disponible',
+                window.PayPal ? 'success' : 'error'
             );
 
             addTest('modules-section',
@@ -316,13 +316,13 @@
         async function testPayPalSDK() {
             console.log('🧪 Iniciando test de carga de PayPal SDK...');
             
-            if (!window.PayPalModule) {
-                addTest('modules-section', '❌', 'Test SDK', 'PayPalModule no está disponible', 'error');
+            if (!window.PayPal) {
+                addTest('modules-section', '❌', 'Test SDK', 'PayPal no está disponible', 'error');
                 return;
             }
 
             try {
-                const result = await window.PayPalModule.init();
+                const result = await window.PayPal.init();
                 addTest('modules-section',
                     result ? '✅' : '❌',
                     'Test SDK - Resultado',

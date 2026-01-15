@@ -49,11 +49,11 @@
       }
 
       try {
-        if (window.PayPalModule && typeof window.PayPalModule.init === 'function') {
+        if (window.PayPal && typeof window.PayPal.init === 'function') {
           checks.module = true;
-          console.log('✅ [PayPal Check] PayPalModule cargado');
+          console.log('✅ [PayPal Check] PayPal module cargado');
         } else {
-          console.error('❌ [PayPal Check] PayPalModule no disponible');
+          console.error('❌ [PayPal Check] PayPal module no disponible');
         }
       } catch (e) {
         console.error('❌ [PayPal Check] Error verificando módulo:', e.message);

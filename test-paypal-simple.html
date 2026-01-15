@@ -183,17 +183,17 @@
             }
 
             // Test 3: PayPal Module
-            if (window.PayPalModule) {
-                setTest("test-paypal-module", "success", `Sí - Módulo v2.0 cargado`);
+            if (window.PayPal) {
+                setTest("test-paypal-module", "success", `Sí - Módulo PayPal cargado`);
             } else {
-                setTest("test-paypal-module", "error", "No - paypal-module.js no cargó");
+                setTest("test-paypal-module", "error", "No - paypal-simple.js no cargó");
             }
 
             // Test 4: PayPal SDK (necesita esperar)
             setTest("test-paypal-sdk", "info", "Intentando cargar SDK...");
             
-            if (window.PayPalModule && typeof window.PayPalModule.init === "function") {
-                const result = await window.PayPalModule.init();
+            if (window.PayPal && typeof window.PayPal.init === "function") {
+                const result = await window.PayPal.init();
                 if (typeof window.paypal !== "undefined") {
                     setTest("test-paypal-sdk", "success", "Sí - SDK cargado y disponible");
                 } else if (result) {

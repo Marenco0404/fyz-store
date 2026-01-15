@@ -113,15 +113,15 @@
                 return;
             }
 
-            log('success', 'PayPalModule disponible');
-            log('info', 'Llamando a PayPalModule.init()...');
+            log('success', 'PayPal disponible');
+            log('info', 'Llamando a PayPal.init()...');
 
             try {
-                const result = await window.PayPalModule.init();
+                const result = await window.PayPal.init();
                 if (result) {
-                    log('success', 'PayPalModule.init() retornó TRUE');
+                    log('success', 'PayPal.init() retornó TRUE');
                 } else {
-                    log('warning', 'PayPalModule.init() retornó FALSE');
+                    log('warning', 'PayPal.init() retornó FALSE');
                 }
             } catch (err) {
                 log('error', 'Exception en init()', err.message);
@@ -131,8 +131,8 @@
         async function testStep3() {
             log('info', '=== PASO 3: Cargar SDK ===');
 
-            if (!window.PayPalModule) {
-                log('error', 'PayPalModule no está disponible');
+            if (!window.PayPal) {
+                log('error', 'PayPal no está disponible');
                 return;
             }
 
@@ -141,7 +141,7 @@
 
             try {
                 // Acceso a método privado para test
-                const result = await window.PayPalModule._loadSdkWithRetry();
+                const result = await window.PayPal._loadSdkWithRetry();
                 if (result) {
                     log('success', '_loadSdkWithRetry() completado exitosamente');
                 } else {
