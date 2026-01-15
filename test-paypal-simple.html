@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test PayPal - Diagnóstico</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3498db;
+        }
+        .test-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .test-item:last-child {
+            border-bottom: none;
+        }
+        .status-icon {
+            font-size: 24px;
+            width: 40px;
+            text-align: center;
+        }
+        .test-content {
+            flex: 1;
+        }
+        .test-label {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        .test-result {
+            color: #666;
+            font-size: 14px;
+            word-break: break-word;
+        }
+        .success {
+            border-left-color: #27ae60;
+        }
+        .success .test-result {
+            color: #27ae60;
+        }
+        .error {
+            border-left-color: #e74c3c;
+        }
+        .error .test-result {
+            color: #e74c3c;
+        }
+        .warning {
+            border-left-color: #f39c12;
+        }
+        .warning .test-result {
+            color: #f39c12;
+        }
+        h1 {
+            color: #2c3e50;
+            margin: 0 0 10px 0;
+        }
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        code {
+            background: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Test PayPal - Diagnóstico</h1>
+    <p class="subtitle">Esta página detecta por qué PayPal no está funcionando</p>
+
+    <div class="test-container">
+        <div class="test-item" id="test-firebase">
+            <div class="status-icon">⏳</div>
+            <div class="test-content">
+                <div class="test-label">Firebase Config</div>
+                <div class="test-result">Cargando...</div>
+            </div>
+        </div>
+        <div class="test-item" id="test-paypal-config">
+            <div class="status-icon">⏳</div>
+            <div class="test-content">
+                <div class="test-label">PayPal Config</div>
+                <div class="test-result">Cargando...</div>
+            </div>
+        </div>
+        <div class="test-item" id="test-paypal-module">
+            <div class="status-icon">⏳</div>
+            <div class="test-content">
+                <div class="test-label">PayPal Module</div>
+                <div class="test-result">Cargando...</div>
+            </div>
+        </div>
+        <div class="test-item" id="test-paypal-sdk">
+            <div class="status-icon">⏳</div>
+            <div class="test-content">
+                <div class="test-label">PayPal SDK</div>
+                <div class="test-result">Cargando...</div>
+            </div>
+        </div>
+        <div class="test-item" id="test-adblock">
+            <div class="status-icon">⏳</div>
+            <div class="test-content">
+                <div class="test-label">AdBlock Detection</div>
+                <div class="test-result">Detectando...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h3>🛠️ Acciones</h3>
+        <button onclick="runTests()">Ejecutar Tests</button>
+        <button onclick="location.href='finalizarcompra.html'">Ir a Checkout</button>
+        <button onclick="clearCache()">Limpiar Cache y Recargar</button>
+    </div>
+
+    <!-- Cargar scripts -->
+    <script src="js/firebase-config.js"></script>
+    <script src="js/paypal-module.js"></script>
+
+    <script>
+        function setTest(id, status, message) {
+            const test = document.getElementById(id);
+            if (!test) return;
+            
+            const icon = {
+                success: "✅",
+                error: "❌",
+                warning: "⚠️",
+                info: "ℹ️"
+            }[status] || "⏳";
+            
+            test.querySelector(".status-icon").textContent = icon;
+            test.querySelector(".test-result").textContent = message;
+            test.className = `test-item ${status}`;
+        }
+
+        async function runTests() {
+            console.clear();
+            console.log("🚀 Ejecutando tests...");
+
+            // Test 1: Firebase Config
+            await new Promise(r => setTimeout(r, 500));
+            if (window.PAYMENTS_CONFIG) {
+                setTest("test-firebase", "success", `Sí - ${window.PAYMENTS_CONFIG.paypalEnv || "?"} environment`);
+            } else {
+                setTest("test-firebase", "error", "No - firebase-config.js no cargó correctamente");
+            }
+
+            // Test 2: PayPal Config
+            if (window.PAYMENTS_CONFIG?.paypalClientId) {
+                const id = window.PAYMENTS_CONFIG.paypalClientId;
+                setTest("test-paypal-config", "success", `Client ID: ${id.substring(0, 20)}...`);
+            } else {
+                setTest("test-paypal-config", "error", "No - PayPal Client ID no configurado");
+            }
+
+            // Test 3: PayPal Module
+            if (window.PayPalModule) {
+                setTest("test-paypal-module", "success", `Sí - Módulo v2.0 cargado`);
+            } else {
+                setTest("test-paypal-module", "error", "No - paypal-module.js no cargó");
+            }
+
+            // Test 4: PayPal SDK (necesita esperar)
+            setTest("test-paypal-sdk", "info", "Intentando cargar SDK...");
+            
+            if (window.PayPalModule && typeof window.PayPalModule.init === "function") {
+                const result = await window.PayPalModule.init();
+                if (typeof window.paypal !== "undefined") {
+                    setTest("test-paypal-sdk", "success", "Sí - SDK cargado y disponible");
+                } else if (result) {
+                    setTest("test-paypal-sdk", "warning", "Módulo dice sí, pero SDK no está en window.paypal");
+                } else {
+                    setTest("test-paypal-sdk", "error", "No - No se pudo cargar. ¿Verificaste el Client ID? ¿AdBlock?");
+                }
+            } else {
+                setTest("test-paypal-sdk", "error", "No - PayPalModule.init() no disponible");
+            }
+
+            // Test 5: AdBlock Detection
+            const img = new Image();
+            let adblockDetected = false;
+            
+            img.onerror = () => { adblockDetected = true; };
+            img.onload = () => { adblockDetected = false; };
+            img.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js";
+            
+            setTimeout(() => {
+                if (adblockDetected) {
+                    setTest("test-adblock", "warning", "⚠️ AdBlock detectado - Podría bloquear PayPal");
+                } else {
+                    setTest("test-adblock", "success", "No - AdBlock no detectado");
+                }
+            }, 2000);
+
+            console.log("✅ Tests completados");
+            console.log("📋 Resultados arriba ⬆️");
+        }
+
+        function clearCache() {
+            if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({type: "SKIP_WAITING"});
+            }
+            location.reload(true);
+        }
+
+        // Ejecutar tests al cargar
+        window.addEventListener("load", () => {
+            runTests();
+        });
+    </script>
+</body>
+</html>

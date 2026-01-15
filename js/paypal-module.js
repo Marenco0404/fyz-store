@@ -149,12 +149,21 @@
     _loadSdk() {
       return new Promise((resolve) => {
         try {
+          // Verificar que PAYMENTS_CONFIG esté disponible
+          const cfg = Utils.getCfg();
+          if (!cfg || !cfg.paypalClientId) {
+            Utils.log("error", "⚠️ PAYMENTS_CONFIG no está disponible o no tiene paypalClientId");
+            Utils.log("error", "Verifica que firebase-config.js se cargó ANTES que paypal-module.js");
+            resolve(false);
+            return;
+          }
+
           if (typeof paypal !== "undefined") {
+            Utils.log("success", "PayPal SDK ya estaba cargado globalmente");
             resolve(true);
             return;
           }
 
-          const cfg = Utils.getCfg();
           const clientId = cfg.paypalClientId;
 
           if (!clientId || clientId.includes("PON_AQUI")) {
@@ -162,6 +171,8 @@
             resolve(false);
             return;
           }
+
+          Utils.log("info", `Cargando PayPal SDK con clientId: ${clientId.substring(0, 20)}...`);
 
           // Parámetros del SDK
           const params = new URLSearchParams({
@@ -179,6 +190,16 @@
           }
 
           const scriptUrl = `${CONFIG.SDK_URL}?${params.toString()}`;
+          Utils.log("info", `URL del SDK: ${scriptUrl.substring(0, 80)}...`);
+
+          // Verificar si el script ya está en el DOM
+          const existingScript = document.querySelector(`script[src*="client-id=${clientId}"]`);
+          if (existingScript) {
+            Utils.log("info", "Script PayPal ya está en el DOM");
+            resolve(true);
+            return;
+          }
+
           const script = document.createElement("script");
           script.src = scriptUrl;
           script.async = true;
@@ -186,25 +207,33 @@
 
           // Timeout de carga
           const timeoutId = setTimeout(() => {
-            Utils.log("warning", "Timeout cargando PayPal SDK (20s)");
+            Utils.log("warning", "⏱️ Timeout cargando PayPal SDK (20s) - Probablemente AdBlock o sin conexión");
+            // No removemos el script, lo dejamos intentar cargar
             resolve(false);
           }, CONFIG.TIMEOUT_MS);
 
           script.onload = () => {
             clearTimeout(timeoutId);
-            Utils.log("success", "PayPal SDK cargado");
-            resolve(true);
+            // Verificar que el objeto paypal esté disponible
+            if (typeof paypal !== "undefined") {
+              Utils.log("success", "✅ PayPal SDK cargado correctamente");
+              resolve(true);
+            } else {
+              Utils.log("warning", "Script cargado pero 'paypal' objeto no disponible");
+              resolve(false);
+            }
           };
 
           script.onerror = (err) => {
             clearTimeout(timeoutId);
-            Utils.log("error", "Error cargando PayPal SDK", err);
+            Utils.log("error", "❌ Error cargando PayPal SDK:", err);
             resolve(false);
           };
 
+          Utils.log("info", "Insertando script en document.head");
           document.head.appendChild(script);
         } catch (err) {
-          Utils.log("error", "Exception en _loadSdk", err);
+          Utils.log("error", "Exception en _loadSdk:", err);
           resolve(false);
         }
       });
