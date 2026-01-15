@@ -202,6 +202,22 @@
     console.log("💾 localStorage keys:", Object.keys(localStorage));
     console.log("📦 localData:", JSON.stringify(localData).substring(0, 200));
 
+    // ✅ MOSTRAR DEBUG EN PÁGINA
+    const debugEl = document.getElementById("debug-storage");
+    if (debugEl) {
+      const debugInfo = {
+        "URL search params": window.location.search,
+        "ID extraído": id,
+        "localStorage keys": Object.keys(localStorage),
+        "fyz_confirmacion_pago": localStorage.getItem("fyz_confirmacion_pago") ? "SÍ (tiene datos)" : "NO",
+        "fyz_carrito": localStorage.getItem("fyz_carrito") ? "SÍ" : "NO",
+        "localData keys": Object.keys(localData),
+        "localData.items": Array.isArray(localData.items) ? `SÍ (${localData.items.length} items)` : "NO",
+        "localData.totalCRC": localData.totalCRC ? `SÍ (${ localData.totalCRC})` : "NO"
+      };
+      debugEl.textContent = JSON.stringify(debugInfo, null, 2);
+    }
+
     // Prioridad 1: localStorage (siempre tiene los datos más frescos después de PayPal)
     if (localData && (localData.totalCRC || localData.total || (localData.items && Array.isArray(localData.items) && localData.items.length > 0))) {
       console.log("✅ ENCONTRADO EN LOCALSTORAGE - Renderizando...");
