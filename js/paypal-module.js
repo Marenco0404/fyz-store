@@ -350,9 +350,9 @@
         const docRef = await window.db.collection("pedidos").add(pedido);
         log("success", "Pedido guardado:", docRef.id);
 
-        // Limpiar carrito
-        localStorage.removeItem("fyz_carrito");
-        localStorage.removeItem("fyz_checkout_step");
+        // NO limpiar carrito aquí - lo hará confirmacion.js después de renderizar
+        // localStorage.removeItem("fyz_carrito");
+        // localStorage.removeItem("fyz_checkout_step");
 
         return orderId;
       } catch (err) {
@@ -371,8 +371,9 @@
           shipping: JSON.parse(localStorage.getItem("fyz_checkout_shipping") || "{}")
         };
         localStorage.setItem(`fyz_pedido_${orderId}`, JSON.stringify(pedido));
-        localStorage.removeItem("fyz_carrito");
-        localStorage.removeItem("fyz_checkout_step");
+        // NO limpiar aquí - lo hará confirmacion.js después de renderizar
+        // localStorage.removeItem("fyz_carrito");
+        // localStorage.removeItem("fyz_checkout_step");
         return orderId;
       }
     },

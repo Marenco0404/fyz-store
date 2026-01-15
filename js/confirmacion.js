@@ -203,6 +203,15 @@
       renderPedido(null, localData, id || localData.id || "");
       attachPrintListener();
       attachTrackListener();
+      
+      // ✅ AHORA limpiar localStorage DESPUÉS de renderizar
+      setTimeout(() => {
+        localStorage.removeItem("fyz_confirmacion_pago");
+        localStorage.removeItem("fyz_carrito");
+        localStorage.removeItem("fyz_checkout_step");
+        localStorage.removeItem("fyz_checkout_shipping");
+      }, 1000);
+      
       return;
     }
 
@@ -218,6 +227,15 @@
           localStorage.setItem("fyz_last_pedido_id", id);
           attachPrintListener();
           attachTrackListener();
+          
+          // ✅ Limpiar localStorage DESPUÉS de renderizar
+          setTimeout(() => {
+            localStorage.removeItem("fyz_confirmacion_pago");
+            localStorage.removeItem("fyz_carrito");
+            localStorage.removeItem("fyz_checkout_step");
+            localStorage.removeItem("fyz_checkout_shipping");
+          }, 1000);
+          
           return;
         }
       } catch (e) {
