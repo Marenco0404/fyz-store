@@ -432,10 +432,14 @@
             this.showWarning("Cancelaste el pago. Podés intentar nuevamente cuando quieras.");
             this.isProcessing = false;
           }
-        }).render(container).catch(err => {
-          Utils.log("error", "Error renderizando buttons", err);
-          this.showError("❌ Error renderizando PayPal. Intenta sin AdBlock.");
-        });
+        }).render(container)
+          .then(() => {
+            Utils.log("success", "Botones renderizados exitosamente");
+          })
+          .catch(err => {
+            Utils.log("error", "Error renderizando buttons", err);
+            this.showError("❌ Error renderizando PayPal. Intenta sin AdBlock.");
+          });
       } catch (err) {
         Utils.log("error", "Exception en _createButtons", err);
         this.showError("Error crítico con PayPal. Recarga la página.");

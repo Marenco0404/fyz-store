@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Aislado - PayPal</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            line-height: 1.6;
+        }
+        .log {
+            background: #252526;
+            border: 1px solid #464647;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 15px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .error { color: #f48771; }
+        .success { color: #89d185; }
+        .warning { color: #dcdcaa; }
+        .info { color: #9cdcfe; }
+        h1 {
+            color: #ffffff;
+        }
+        button {
+            background: #0e639c;
+            color: white;
+            border: 1px solid #0e639c;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #1177bb;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Aislado - PayPal Module</h1>
+    <p>Esta página prueba el módulo PayPal sin el contexto completo del checkout</p>
+
+    <div>
+        <button onclick="testStep1()">PASO 1: Verificar Config</button>
+        <button onclick="testStep2()">PASO 2: Inicializar Módulo</button>
+        <button onclick="testStep3()">PASO 3: Cargar SDK</button>
+        <button onclick="testStep4()">PASO 4: Verificar Global paypal</button>
+        <button onclick="clearLog()">Limpiar Log</button>
+    </div>
+
+    <div class="log" id="log"></div>
+
+    <!-- Cargar scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <script src="js/firebase-config.js"></script>
+    <script src="js/paypal-module.js"></script>
+
+    <script>
+        function log(type, msg, data = null) {
+            const logEl = document.getElementById('log');
+            const color = { error: '#f48771', success: '#89d185', warning: '#dcdcaa', info: '#9cdcfe' }[type] || '#d4d4d4';
+            const icon = { error: '❌', success: '✅', warning: '⚠️', info: 'ℹ️' }[type] || '▶️';
+            
+            const line = document.createElement('div');
+            line.style.color = color;
+            line.innerHTML = `<span style="color: #858585;">[${new Date().toLocaleTimeString()}]</span> ${icon} ${msg}` + (data ? ` <span style="color: #858585;">${JSON.stringify(data)}</span>` : '');
+            
+            logEl.appendChild(line);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        async function testStep1() {
+            clearLog();
+            log('info', '=== PASO 1: Verificar Config ===');
+
+            if (!window.PAYMENTS_CONFIG) {
+                log('error', 'PAYMENTS_CONFIG no está disponible');
+                return;
+            }
+
+            log('success', 'PAYMENTS_CONFIG disponible');
+            log('info', 'paypalClientId', window.PAYMENTS_CONFIG.paypalClientId?.substring(0, 30) + '...');
+            log('info', 'paypalEnv', window.PAYMENTS_CONFIG.paypalEnv);
+            log('info', 'paypalFxRate', window.PAYMENTS_CONFIG.paypalFxRate);
+            log('info', 'paypalCurrency', window.PAYMENTS_CONFIG.paypalCurrency);
+
+            if (!window.PAYMENTS_CONFIG.paypalClientId) {
+                log('error', 'paypalClientId NO configurado - Esto es CRÍTICO');
+            } else {
+                log('success', 'paypalClientId configurado correctamente');
+            }
+        }
+
+        async function testStep2() {
+            log('info', '=== PASO 2: Inicializar Módulo ===');
+
+            if (!window.PayPalModule) {
+                log('error', 'PayPalModule no está disponible');
+                return;
+            }
+
+            log('success', 'PayPalModule disponible');
+            log('info', 'Llamando a PayPalModule.init()...');
+
+            try {
+                const result = await window.PayPalModule.init();
+                if (result) {
+                    log('success', 'PayPalModule.init() retornó TRUE');
+                } else {
+                    log('warning', 'PayPalModule.init() retornó FALSE');
+                }
+            } catch (err) {
+                log('error', 'Exception en init()', err.message);
+            }
+        }
+
+        async function testStep3() {
+            log('info', '=== PASO 3: Cargar SDK ===');
+
+            if (!window.PayPalModule) {
+                log('error', 'PayPalModule no está disponible');
+                return;
+            }
+
+            log('info', 'Intentando cargar SDK de PayPal...');
+            log('warning', 'Esto puede tomar 20 segundos si hay problemas de conexión');
+
+            try {
+                // Acceso a método privado para test
+                const result = await window.PayPalModule._loadSdkWithRetry();
+                if (result) {
+                    log('success', '_loadSdkWithRetry() completado exitosamente');
+                } else {
+                    log('error', '_loadSdkWithRetry() falló después de intentos');
+                }
+            } catch (err) {
+                log('error', 'Exception en _loadSdkWithRetry()', err.message);
+            }
+        }
+
+        async function testStep4() {
+            log('info', '=== PASO 4: Verificar Global window.paypal ===');
+
+            if (typeof window.paypal === 'undefined') {
+                log('error', 'window.paypal NO está disponible');
+                log('warning', 'Ejecuta PASO 3 primero para cargar el SDK');
+                return;
+            }
+
+            log('success', 'window.paypal está disponible');
+            log('info', 'paypal.Buttons disponible:', typeof window.paypal.Buttons);
+            log('info', 'paypal.FUNDING disponible:', typeof window.paypal.FUNDING);
+
+            if (typeof window.paypal.Buttons === 'function') {
+                log('success', '✅ PayPal está completamente funcional');
+            }
+        }
+
+        // Log inicial
+        document.addEventListener('DOMContentLoaded', () => {
+            log('info', 'Página cargada. Ejecuta los pasos en orden →');
+            log('info', 'Abre F12 (Developer Tools) para ver errores adicionales');
+        });
+    </script>
+</body>
+</html>
