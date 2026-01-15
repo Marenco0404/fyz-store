@@ -1,7 +1,6 @@
 {
   "buildCommand": "echo 'Static site - no build needed'",
   "installCommand": "npm install",
-  "framework": "static",
   "outputDirectory": ".",
   "functions": {
     "api/**/*.js": {
