@@ -505,13 +505,32 @@
       });
     },
 
-    _showCheckoutError(msg) {
+    _showCheckoutError(msg, type = "error") {
       const box = document.getElementById("checkout-error");
       if (box) {
-        box.textContent = msg;
+        box.innerHTML = msg;
         box.style.display = "block";
+        
+        // Aplicar estilos según el tipo
+        if (type === "success") {
+          box.style.borderLeft = "4px solid #27ae60";
+          box.style.background = "rgba(39, 174, 96, 0.1)";
+          box.style.color = "#27ae60";
+        } else if (type === "warning") {
+          box.style.borderLeft = "4px solid #f39c12";
+          box.style.background = "rgba(243, 156, 18, 0.1)";
+          box.style.color = "#f39c12";
+        } else if (type === "info") {
+          box.style.borderLeft = "4px solid #3498db";
+          box.style.background = "rgba(52, 152, 219, 0.1)";
+          box.style.color = "#3498db";
+        } else {
+          box.style.borderLeft = "4px solid #e74c3c";
+          box.style.background = "rgba(231, 76, 60, 0.1)";
+          box.style.color = "#e74c3c";
+        }
       } else {
-        alert(msg);
+        alert(msg.replace(/<[^>]*>/g, "")); // Remove HTML tags for alert
       }
     },
 
@@ -530,9 +549,12 @@
       const container = document.getElementById("paypal-button-container");
       if (!container) return;
 
+      // Mostrar estado de carga
+      container.innerHTML = `<div style="padding: 1.5rem; text-align: center; color: var(--color-text-light); background: rgba(52, 152, 219, 0.05); border-radius: 8px; border: 1px solid rgba(52, 152, 219, 0.2);"><i class="fas fa-spinner fa-spin"></i> Cargando PayPal...</div>`;
+
       const ok = await this._loadPayPalSdk();
       if (!ok || typeof paypal === "undefined") {
-        container.innerHTML = `<div style="color:red; padding:10px;">❌ PayPal SDK no cargó. Probá sin AdBlock.</div>`;
+        container.innerHTML = `<div style="color:#e74c3c; padding:1.5rem; background: rgba(231, 76, 60, 0.1); border-radius: 8px; border-left: 4px solid #e74c3c; font-size: 0.95rem;"><strong>⚠️ No se pudo cargar PayPal</strong><br><small style="display: block; margin-top: 0.5rem;">Soluciones: Desactivá AdBlock, probá en modo incógnito o recargá la página.</small></div>`;
         return;
       }
 
@@ -553,7 +575,13 @@
       try {
         paypal.Buttons({
           locale: "es_ES",
-          style: { layout: "vertical" },
+          style: { 
+            layout: "vertical",
+            color: "blue",
+            shape: "pill",
+            height: 48,
+            label: "pay"
+          },
 
           createOrder: async (data, actions) => {
             this._clearCheckoutError();
@@ -585,7 +613,8 @@
 
           onApprove: async (data, actions) => {
             try {
-              console.log("✅ PayPal approved, capturing order...");
+              console.log("✅ PayPal aprobado, procesando pago...");
+              this._showCheckoutError("⏳ Procesando tu pago...", "info");
               const details = await actions.order.capture();
               
               // Captura real suele venir en purchase_units[0].payments.captures[0].id
@@ -612,29 +641,31 @@
               });
 
               console.log("✅ Pedido registrado:", pedidoId);
-              window.location.href = pedidoId
-                ? ("confirmacion.html?id=" + encodeURIComponent(pedidoId))
-                : "confirmacion.html";
+              this._showCheckoutError("✅ ¡Pago confirmado! Redirigiendo...", "success");
+              setTimeout(() => {
+                window.location.href = pedidoId
+                  ? ("confirmacion.html?id=" + encodeURIComponent(pedidoId))
+                  : "confirmacion.html";
+              }, 1500);
             } catch (err) {
-              console.error("❌ PayPal capture error:", err);
-              const msg = (err && (err.message || err.toString())) ? String(err.message || err.toString()) : "";
+              console.error("❌ Error en captura PayPal:", err);
+              const msg = (err && (err.message || err.toString())) ? String(err.message || err.toString()) : "error desconocido";
               this._showCheckoutError(
-                "❌ No se pudo completar el pago con PayPal." + (msg ? " Error: " + msg : "") +
-                "\n\nSoluciones:\n- Probá sin AdBlock\n- Abrí en modo incógnito\n- Revisá que tengas saldo en PayPal\n- Recargá la página si falla el botón"
+                `<strong>⚠️ No se pudo procesar el pago</strong><br><small style="display: block; margin-top: 0.5rem;">Error: ${msg}</small><br><small style="display: block; margin-top: 1rem;">Intenta de nuevo o probá:<br>• Sin AdBlock<br>• Modo incógnito<br>• Con saldo en PayPal</small>`
               );
             }
           },
 
           onError: (err) => {
-            console.error("❌ PayPal error:", err);
+            console.error("❌ Error PayPal:", err);
             this._showCheckoutError(
-              "❌ Error de PayPal.\n\nProbá:\n- Desactivar AdBlock\n- Modo incógnito\n- Otra tarjeta o método de pago\n\nSi persiste, revisá la consola (F12)."
+              `<strong>⚠️ Ocurrió un error con PayPal</strong><br><small style="display: block; margin-top: 0.5rem;">Intenta:<br>• Desactivar AdBlock<br>• Abrir en modo incógnito<br>• Actualizar la página<br><br>Si el problema persiste, abre la consola (F12) para más detalles.</small>`
             );
           },
 
           onCancel: () => {
-            console.log("⚠️ PayPal cancelled by user");
-            this._showCheckoutError("Cancelaste el pago en PayPal. Podés intentar de nuevo.");
+            console.log("⚠️ Usuario canceló PayPal");
+            this._showCheckoutError("Cancelaste el pago. Podés intentar nuevamente cuando quieras.", "warning");
           }
         }).render("#paypal-button-container").catch((err) => {
           console.error("❌ PayPal Buttons render error:", err);
