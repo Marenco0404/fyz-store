@@ -192,20 +192,26 @@
   }
 
   async function load() {
+    console.log("🚀 confirmacion.js cargando...");
+    
     const localData = getLocalConfirmData();
     const id = getOrderIdFromUrlOrStorage();
 
-    console.log("🔍 Buscando pedido:", { id, localDataKeys: Object.keys(localData) });
+    console.log("📍 URL params:", window.location.search);
+    console.log("🔍 ID extraído:", id);
+    console.log("💾 localStorage keys:", Object.keys(localStorage));
+    console.log("📦 localData:", JSON.stringify(localData).substring(0, 200));
 
     // Prioridad 1: localStorage (siempre tiene los datos más frescos después de PayPal)
     if (localData && (localData.totalCRC || localData.total || (localData.items && Array.isArray(localData.items) && localData.items.length > 0))) {
-      console.log("✅ Usando datos de localStorage");
+      console.log("✅ ENCONTRADO EN LOCALSTORAGE - Renderizando...");
       renderPedido(null, localData, id || localData.id || "");
       attachPrintListener();
       attachTrackListener();
       
       // ✅ AHORA limpiar localStorage DESPUÉS de renderizar
       setTimeout(() => {
+        console.log("🧹 Limpiando localStorage");
         localStorage.removeItem("fyz_confirmacion_pago");
         localStorage.removeItem("fyz_carrito");
         localStorage.removeItem("fyz_checkout_step");
@@ -215,13 +221,15 @@
       return;
     }
 
+    console.log("⚠️ NO encontrado en localStorage, intentando Firestore...");
+
     // Prioridad 2: Si tenemos ID, intenta Firestore
     if (id && window.db) {
       try {
         console.log("🔍 Buscando en Firestore con ID:", id);
         const doc = await window.db.collection("pedidos").doc(id).get();
         if (doc.exists) {
-          console.log("✅ Pedido encontrado en Firestore");
+          console.log("✅ ENCONTRADO EN FIRESTORE - Renderizando...");
           const pedido = { id: doc.id, ...doc.data() };
           renderPedido(pedido, localData, id);
           localStorage.setItem("fyz_last_pedido_id", id);
@@ -230,6 +238,7 @@
           
           // ✅ Limpiar localStorage DESPUÉS de renderizar
           setTimeout(() => {
+            console.log("🧹 Limpiando localStorage");
             localStorage.removeItem("fyz_confirmacion_pago");
             localStorage.removeItem("fyz_carrito");
             localStorage.removeItem("fyz_checkout_step");
@@ -244,7 +253,7 @@
     }
 
     // Prioridad 3: Mostrar error si nada funciona
-    console.error("❌ No se encontró pedido");
+    console.error("❌ NO SE ENCONTRÓ PEDIDO");
     showNotFound();
   }
 

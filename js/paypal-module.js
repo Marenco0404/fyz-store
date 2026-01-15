@@ -241,9 +241,13 @@
                 fecha: new Date().toISOString()
               };
 
-              // Guardar en localStorage PRIMERO (para confirmacion.html)
+              // ✅ GUARDAR EN LOCALSTORAGE PRIMERO - CRÍTICO
+              console.log("💾 Guardando en localStorage:", JSON.stringify(pedidoData).substring(0, 100));
               localStorage.setItem("fyz_confirmacion_pago", JSON.stringify(pedidoData));
-              localStorage.setItem(`fyz_pedido_${order.id}`, JSON.stringify(pedidoData));
+              
+              // Verificar que se guardó
+              const verificar = localStorage.getItem("fyz_confirmacion_pago");
+              console.log("✅ Verificado en localStorage:", verificar ? "SÍ" : "NO");
 
               // Intentar guardar en Firestore (si está disponible)
               await this.savePedido({
@@ -254,9 +258,12 @@
               });
 
               this.showSuccess("✅ ¡Pago completado! Redirigiendo...");
+              
+              // Delay más largo para asegurar que todo se guarde
               setTimeout(() => {
+                console.log("🔄 Redirigiendo a confirmacion.html");
                 window.location.href = `confirmacion.html?id=${order.id}`;
-              }, 1500);
+              }, 2000);
             } catch (err) {
               log("error", "Error capturando orden", err);
               this.showError(`Error: ${err.message}`);
