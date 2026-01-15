@@ -3,6 +3,58 @@
  * Funciones auxiliares y utilitarias
  */
 
+// Utilidades globales
+window.Helpers = {
+  // Formatear moneda CRC
+  formatCRC: (amount) => {
+    return new Intl.NumberFormat('es-CR', {
+      style: 'currency',
+      currency: 'CRC',
+      minimumFractionDigits: 0
+    }).format(amount);
+  },
+
+  // Formatear moneda USD
+  formatUSD: (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2
+    }).format(amount);
+  },
+
+  // Convertir CRC a USD
+  crcToUsd: (crc) => {
+    const rate = window.PAYMENTS_CONFIG?.paypalFxRate || 520;
+    return (crc / rate).toFixed(2);
+  },
+
+  // Convertir USD a CRC
+  usdToCrc: (usd) => {
+    const rate = window.PAYMENTS_CONFIG?.paypalFxRate || 520;
+    return Math.round(usd * rate);
+  },
+
+  // Validar email
+  validarEmail: (email) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  },
+
+  // Generar ID único
+  generarId: () => {
+    return 'TX-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+  },
+
+  // Log con timestamp
+  log: (tipo, msg, data = null) => {
+    const timestamp = new Date().toLocaleTimeString();
+    console.log(`[${timestamp}] ${tipo}: ${msg}`, data || '');
+  }
+};
+
+console.log("✅ [Helpers] Cargado");
+
 // Formatear colones (CRC) de forma consistente en todo el sitio
 window.formatCRC = function(amount) {
     const n = Number(amount) || 0;
