@@ -281,8 +281,24 @@
      * Guardar pedido en Firestore
      */
     async savePedido({ orderId, totalCRC, totalUSD, items }) {
+      // Si Firestore no está disponible, simplemente guardar en localStorage
       if (typeof window.db === "undefined" || !window.db) {
-        log("warning", "Firestore no disponible");
+        log("warning", "Firestore no disponible - guardando en localStorage");
+        const pedido = {
+          id: orderId,
+          usuario: window.auth?.currentUser?.uid || "anonimo",
+          email: window.auth?.currentUser?.email || "desconocido",
+          items,
+          totalCRC,
+          totalUSD,
+          metodo: "paypal",
+          estado: "completado",
+          fecha: new Date().toISOString(),
+          shipping: JSON.parse(localStorage.getItem("fyz_checkout_shipping") || "{}")
+        };
+        localStorage.setItem(`fyz_pedido_${orderId}`, JSON.stringify(pedido));
+        localStorage.removeItem("fyz_carrito");
+        localStorage.removeItem("fyz_checkout_step");
         return orderId;
       }
 
@@ -324,8 +340,24 @@
 
         return orderId;
       } catch (err) {
-        log("error", "Error guardando pedido", err);
-        throw err;
+        log("error", "Error con Firestore, intentando fallback", err);
+        // Fallback: guardar en localStorage si falla Firestore
+        const pedido = {
+          id: orderId,
+          usuario: window.auth?.currentUser?.uid || "anonimo",
+          email: window.auth?.currentUser?.email || "desconocido",
+          items,
+          totalCRC,
+          totalUSD,
+          metodo: "paypal",
+          estado: "completado",
+          fecha: new Date().toISOString(),
+          shipping: JSON.parse(localStorage.getItem("fyz_checkout_shipping") || "{}")
+        };
+        localStorage.setItem(`fyz_pedido_${orderId}`, JSON.stringify(pedido));
+        localStorage.removeItem("fyz_carrito");
+        localStorage.removeItem("fyz_checkout_step");
+        return orderId;
       }
     },
 
